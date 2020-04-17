@@ -3,5 +3,6 @@ mod cpu;
 
 
 fn main() {
-    println!("Hello, world!");
+    println!("NES Started!");
+    let mut cpu = CPU::new();
 }
