@@ -1,8 +1,11 @@
-use cpu::CPU;
 mod cpu;
-
+mod bus;
+use bus::BUS;
+use cpu::CPU;
 
 fn main() {
     println!("NES Started!");
-    let mut cpu = CPU::new();
+    let bus = BUS::new();
+    let mut cpu: CPU = CPU::new(bus);
+    
 }

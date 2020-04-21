@@ -1,5 +1,4 @@
-const MEM_SIZE: usize = 0x10000;
-
+use crate::bus::BUS;
 //  P -> Flag registor, each bit represents a flag.
 //  00000001 -> Carry Flag
 //  00000010 -> Zero flag
@@ -10,22 +9,30 @@ const MEM_SIZE: usize = 0x10000;
 //  01000000 -> Overflow flag
 //  10000000 -> Negative flag
 
+enum Mode {
+    Immediate,
+    ZeroPage,
+    ZeroPageX,
+    ZeroPageY,
+    Absolute,
+    AbsoluteX,
+    AbsoluteY,
+    Indirect,
+    IndirectX,
+    IndirectY,
+    IndirectYForceTick,
+    NoMode,
+}
 
-// Memory
-// ========
-// 0x100    => Zero Page
-// 0x200    => Stack
-// 0x800    => RAM
-// 0x2000   => Mirrors (0-0x7FF)
-// 0x2008   => I/O Registers
-// 0x4000   => Mirrors (0x2000-0x2007)
-// 0x4020   => I/O Registers
-// 0x6000   => Expansion ROM
-// 0x8000   => SRAM
-// 0xC000   => PRG-ROM (Lower Bank)
-// 0x10000  => PRG-ROM (Upper Bank)
+enum Interrupt {
+    Nmi,
+    Reset,
+    Irq,
+    Break,
+}
 
 pub struct CPU {
+    pub bus: BUS,
     pub a:u8,
     pub x:u8,
     pub y:u8,
@@ -33,13 +40,13 @@ pub struct CPU {
     pub p:u8,
     pub sp:u8,
     pub pc:u16,
-    pub memory: [u8;MEM_SIZE]
-
+    
 }
 
 impl CPU {
-    pub fn new() -> CPU {
+    pub fn new(bus: BUS) -> CPU {
         CPU{
+            bus,
             a:0,
             x:0,
             y:0,
@@ -47,7 +54,7 @@ impl CPU {
             p:0b00000100,
             sp:0,
             pc:0,
-            memory:[0;MEM_SIZE]
+            
 
         }
     }
