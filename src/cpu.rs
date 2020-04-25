@@ -9,7 +9,7 @@ use crate::bus::BUS;
 //  01000000 -> Overflow flag
 //  10000000 -> Negative flag
 
-enum Mode {
+pub enum Mode {
     Immediate,
     ZeroPage,
     ZeroPageX,
@@ -20,14 +20,13 @@ enum Mode {
     Indirect,
     IndirectX,
     IndirectY,
-    IndirectYForceTick,
     NoMode,
 }
 
 pub enum Interrupt {
-    Nmi,
     Reset,
     Irq,
+    Nmi,
     Break,
 }
 
@@ -60,6 +59,20 @@ impl CPU {
         }
     }
 
+    pub fn clock(&mut self) {
+        if self.cycles == 0 {
+            let opcode = self.read(self.pc);
+            self.set_unused(); //Always true
+            self.pc += 1;
+            match opcode {
+                0x00 => self.brk(),
+                _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
+            }
+            self.set_unused();
+        }
+        self.cycles -= 1;
+    }
+
     //Read are write functions are here to make CPU struct project-independent.
     fn read(&mut self, addr: u16) -> u8 {
         self.bus.read(addr)
@@ -69,18 +82,15 @@ impl CPU {
         self.bus.write(addr, data);
     }
 
-    pub fn clock(&mut self) {
-        if self.cycles == 0 {
-            let opcode = self.read(self.pc);
-            self.pc += 1;
-
-        }
-    }
-
     pub fn interrupt(&mut self, interrupt_type: Interrupt) {
         match interrupt_type {
             Interrupt::Reset => self.reset(),
             Interrupt::Irq => self.irq(),
+            Interrupt::Nmi => self.nmi(),
+            Interrupt::Break => {
+                self.pc -= 1;
+                self.brk(); //Calling BREAK instruction. BREAK instruction increments pc by 1 where as interrupt does not.
+            }
             _ => panic!("Unimplemented Interrupt called!")
         }
     }
@@ -101,18 +111,14 @@ impl CPU {
     }
 
     fn irq(&mut self) {
-        //TODO: implement Push/POP to stack.
         if self.get_interrupt_disable() == false {
-            self.write(0x0100 + (self.sp as u16), (self.pc >> 8) as u8);
-            self.sp -= 1;
-            self.write(0x0100 + (self.sp as u16), self.pc as u8);
-            self.sp -= 1;
+            self.push_to_stack((self.pc >> 8) as u8);
+            self.push_to_stack(self.pc as u8);
 
             self.set_break(false);
-            self.set_unused(true);
+            self.set_unused();
             self.set_interrupt_disable(true);
-            self.write(0x0100 + (self.sp as u16), self.p);
-            self.sp -= 1;
+            self.push_to_stack(self.p);
 
             let lo = self.read(0xFFFE);
             let hi = self.read(0xFFFE+1);
@@ -120,6 +126,40 @@ impl CPU {
             self.cycles = 7;
         }
     }
+
+    fn nmi(&mut self) {
+        self.push_to_stack((self.pc >> 8) as u8);
+        self.push_to_stack(self.pc as u8);
+
+        self.set_break(false);
+        self.set_unused();
+        self.set_interrupt_disable(true);
+        self.push_to_stack(self.p);
+
+        let lo = self.read(0xFFFA);
+        let hi = self.read(0xFFFA+1);
+        self.pc = ((hi as u16) << 8) | lo as u16;
+        self.cycles = 8;
+    }
+
+    fn brk(&mut self) {
+        self.pc += 1;
+        self.set_interrupt_disable(true);
+        self.push_to_stack((self.pc >> 8) as u8);
+        self.push_to_stack(self.pc as u8);
+
+        self.set_break(true);
+        self.push_to_stack(self.p);
+        self.set_break(false);
+        self.pc = (self.read(0xffff) as u16) << 8 | self.read(0xfffe) as u16;
+    }
+
+    fn push_to_stack(&mut self, val: u8) {
+        self.write(0x100+(self.sp as u16), val);
+        self.sp -= 1;
+    }
+
+
     //Get Flags
     pub fn get_carry(&mut self) -> bool {
         if (self.p & 0b00000001) == 1 { return true } else { return false };
@@ -177,12 +217,8 @@ impl CPU {
         }
     }
 
-    pub fn set_unused(&mut self, val: bool) {
-        if val {
-            self.p |= 0b00100000;    
-        } else {
-            self.p &= !0b00100000;
-        }
+    pub fn set_unused(&mut self) {
+        self.p |= 0b00100000;
     }
 
     pub fn set_overflow(&mut self, val: bool) {
