@@ -14,13 +14,14 @@ pub enum Mode {
     ZeroPage,
     ZeroPageX,
     ZeroPageY,
+    Relative,
     Absolute,
     AbsoluteX,
     AbsoluteY,
     Indirect,
     IndirectX,
     IndirectY,
-    NoMode,
+    Implied
 }
 
 pub enum Interrupt {
@@ -66,11 +67,68 @@ impl CPU {
             self.pc += 1;
             match opcode {
                 0x00 => self.brk(),
+                0x01 => self.ora(Mode::IndirectX),
+                0x05 => self.ora(Mode::ZeroPage),
+                0x06 => self.asl(Mode::ZeroPage),
+                0x08 => self.php(Mode::Implied),
+                0x09 => self.ora(Mode::Immediate),
+                0x0a => self.asl_a(),
+                0x0d => self.ora(Mode::Absolute),
+                0x0e => self.asl(Mode::Absolute),
+
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
+            
             self.set_unused();
         }
         self.cycles -= 1;
+    }
+
+    //Instructions.
+    fn ora(&mut self, mode: Mode) {
+        let operand: u8 = self.read_operand(&mode);
+        let result = self.a | operand;
+        self.set_zero(result == 0x00);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result as u8;
+    }
+
+    fn asl(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let operand = self.bus.read(address);
+        let result: u16 = (operand as u16) << 1;
+        self.set_carry(result > 0xff);
+        self.set_zero((result & 0x00ff) == 0x00);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result as u8);
+    }
+
+    fn asl_a(&mut self) {
+        let operand = self.a;
+        let result: u16 = (operand as u16) << 1;
+        self.set_carry(result > 0xff);
+        self.set_zero((result & 0x00ff) == 0x00);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result as u8;
+    }
+
+    fn php(&mut self, mode: Mode) {
+        self.set_break(true);
+        self.set_unused();
+        self.push_to_stack(self.p);
+        self.set_break(false);
+    }
+
+    //Helper functions.
+    fn read_operand(&mut self, mode: &Mode) -> u8 {
+        let address:u16 = self.operand_address(mode);
+        self.read(address)
+    }
+
+    fn operand_address(&mut self, mode: &Mode) -> u16 {
+        match mode {
+            _ => panic!("operand_address called on unimplemented AddressMode!",)
+        }
     }
 
     //Read are write functions are here to make CPU struct project-independent.
@@ -95,6 +153,7 @@ impl CPU {
         }
     }
 
+    //private Interrupt functions.
     fn reset(&mut self) {
         let lo: u8 = self.read(0xFFFC);
         let hi: u8 = self.read(0xFFFC + 1);
@@ -153,6 +212,7 @@ impl CPU {
         self.set_break(false);
         self.pc = (self.read(0xffff) as u16) << 8 | self.read(0xfffe) as u16;
     }
+    
 
     fn push_to_stack(&mut self, val: u8) {
         self.write(0x100+(self.sp as u16), val);
