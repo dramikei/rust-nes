@@ -75,6 +75,15 @@ impl CPU {
                 0x0a => self.asl_a(),
                 0x0d => self.ora(Mode::Absolute),
                 0x0e => self.asl(Mode::Absolute),
+                0x10 => self.bpl(Mode::Relative),
+                0x11 => self.ora(Mode::IndirectY),
+                0x15 => self.ora(Mode::ZeroPageX),
+                0x16 => self.asl(Mode::ZeroPageX),
+                0x18 => self.clc(Mode::Implied),
+                0x19 => self.ora(Mode::AbsoluteY),
+                0x1d => self.ora(Mode::AbsoluteX),
+                0x1e => self.asl(Mode::AbsoluteX),
+
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
@@ -117,6 +126,19 @@ impl CPU {
         self.set_unused();
         self.push_to_stack(self.p);
         self.set_break(false);
+    }
+
+    fn bpl(&mut self, mode: Mode) {
+        //TODO: Check cycles for this instruction
+        if !self.get_negative() {
+            let x = Mode::Immediate;
+            let offset = self.read_operand(&x);
+            self.pc += offset as u16;
+        }
+    }
+
+    fn clc(&mut self, mode: Mode) {
+        self.set_carry(false);
     }
 
     //Helper functions.
