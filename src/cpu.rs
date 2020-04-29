@@ -94,6 +94,14 @@ impl CPU {
                 0x2c => self.bit(Mode::Absolute),
                 0x2d => self.and(Mode::Absolute),
                 0x2e => self.rol(Mode::Absolute),
+                0x30 => self.bmi(Mode::Relative),
+                0x31 => self.and(Mode::IndirectY),
+                0x35 => self.and(Mode::ZeroPageX),
+                0x36 => self.rol(Mode::ZeroPageX),
+                0x38 => self.sec(Mode::Implied),
+                0x39 => self.and(Mode::AbsoluteY),
+                0x3d => self.and(Mode::AbsoluteX),
+                0x3e => self.rol(Mode::AbsoluteX),
 
 
 
@@ -141,12 +149,7 @@ impl CPU {
     }
 
     fn bpl(&mut self, mode: Mode) {
-        //TODO: Check cycles for this instruction
-        if !self.get_negative() {
-            let x = Mode::Immediate;
-            let offset = self.read_operand(&x);
-            self.pc += offset as u16;
-        }
+        if !self.get_negative() { self.branch() };
     }
 
     fn clc(&mut self, mode: Mode) {
@@ -214,7 +217,23 @@ impl CPU {
         self.set_unused();
     }
 
+    fn bmi(&mut self, mode: Mode) {
+        if self.get_negative() { self.branch() }
+    }
+
+    fn sec(&mut self, mode: Mode) {
+        self.set_carry(true);
+    }
+
     //Helper functions.
+
+    fn branch(&mut self) {
+        //TODO: CHECK CYCLES.
+        let x = Mode::Immediate;
+        let offset = self.read_operand(&x);
+        self.pc += offset as u16;
+    }
+
     fn read_operand(&mut self, mode: &Mode) -> u8 {
         let address:u16 = self.operand_address(mode);
         self.read(address)
