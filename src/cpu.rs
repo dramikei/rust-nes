@@ -83,6 +83,18 @@ impl CPU {
                 0x19 => self.ora(Mode::AbsoluteY),
                 0x1d => self.ora(Mode::AbsoluteX),
                 0x1e => self.asl(Mode::AbsoluteX),
+                0x20 => self.jsr(Mode::Absolute),
+                0x21 => self.and(Mode::IndirectX),
+                0x24 => self.bit(Mode::ZeroPage),
+                0x25 => self.and(Mode::ZeroPage),
+                0x26 => self.rol(Mode::ZeroPage),
+                0x28 => self.plp(Mode::Implied),
+                0x29 => self.and(Mode::Immediate),
+                0x2a => self.rol_a(),
+                0x2c => self.bit(Mode::Absolute),
+                0x2d => self.and(Mode::Absolute),
+                0x2e => self.rol(Mode::Absolute),
+
 
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
@@ -141,6 +153,67 @@ impl CPU {
         self.set_carry(false);
     }
 
+    fn jsr(&mut self, mode: Mode) {
+        let x = Mode::Absolute;
+        let target_address = self.operand_address(&x);
+        let return_address = self.pc - 1;
+        self.push_to_stack((return_address >> 8) as u8);
+        self.push_to_stack(return_address as u8);
+        self.pc = target_address;
+    }
+
+    fn and(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        let result = self.a & operand;
+        self.set_zero(result == 0x0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn bit(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        let result = self.a & operand;
+        self.set_zero(result == 0);
+        self.set_overflow((operand & 0b01000000) != 0);
+        self.set_negative((result & 0x80) > 0);
+    }
+
+    fn rol(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let carry: u8;
+        if self.get_carry() {
+            carry =1;
+        } else {
+            carry =0;
+        }
+        let result = (operand << 1) | carry;
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+    }
+
+    fn rol_a(&mut self) {
+        let operand = self.a;
+        let carry: u8;
+        if self.get_carry() {
+            carry =1;
+        } else {
+            carry =0;
+        }
+        let result = (operand << 1) | carry;
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn plp(&mut self, mode: Mode) {
+        self.p = self.pop_from_stack();
+        self.set_unused();
+    }
+
     //Helper functions.
     fn read_operand(&mut self, mode: &Mode) -> u8 {
         let address:u16 = self.operand_address(mode);
@@ -151,6 +224,16 @@ impl CPU {
         match mode {
             _ => panic!("operand_address called on unimplemented AddressMode!",)
         }
+    }
+
+    fn push_to_stack(&mut self, val: u8) {
+        self.write(0x100+(self.sp as u16), val);
+        self.sp -= 1;
+    }
+
+    fn pop_from_stack(&mut self) -> u8 {
+        self.sp += 1;
+        self.read(0x100+(self.sp as u16))
     }
 
     //Read are write functions are here to make CPU struct project-independent.
@@ -234,13 +317,6 @@ impl CPU {
         self.set_break(false);
         self.pc = (self.read(0xffff) as u16) << 8 | self.read(0xfffe) as u16;
     }
-    
-
-    fn push_to_stack(&mut self, val: u8) {
-        self.write(0x100+(self.sp as u16), val);
-        self.sp -= 1;
-    }
-
 
     //Get Flags
     pub fn get_carry(&mut self) -> bool {
