@@ -112,6 +112,14 @@ impl CPU {
                 0x4c => self.jmp(Mode::Absolute),
                 0x4d => self.eor(Mode::Absolute),
                 0x4e => self.lsr(Mode::Absolute),
+                0x50 => self.bvc(Mode::Relative),
+                0x51 => self.adc(Mode::IndirectX),
+                0x55 => self.eor(Mode::ZeroPageX),
+                0x56 => self.lsr(Mode::ZeroPageX),
+                0x58 => self.cli(Mode::Implied),
+                0x59 => self.eor(Mode::AbsoluteY),
+                0x5d => self.eor(Mode::AbsoluteX),
+                0x5e => self.lsr(Mode::AbsoluteX),
 
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
@@ -194,11 +202,7 @@ impl CPU {
         let address = self.operand_address(&mode);
         let operand = self.read(address);
         let carry: u8;
-        if self.get_carry() {
-            carry =1;
-        } else {
-            carry =0;
-        }
+        if self.get_carry() { carry = 1 } else { carry = 0 };
         let result = (operand << 1) | carry;
         self.set_carry(operand & 0b10000000 != 0);
         self.set_zero(result == 0);
@@ -209,11 +213,7 @@ impl CPU {
     fn rol_a(&mut self) {
         let operand = self.a;
         let carry: u8;
-        if self.get_carry() {
-            carry =1;
-        } else {
-            carry =0;
-        }
+        if self.get_carry() { carry = 1 } else { carry = 0 };
         let result = (operand << 1) | carry;
         self.set_carry(operand & 0b10000000 != 0);
         self.set_zero(result == 0);
@@ -273,6 +273,29 @@ impl CPU {
 
     fn jmp(&mut self, mode: Mode) {
         self.pc = self.operand_address(&mode);
+    }
+
+    fn bvc(&mut self, mode: Mode) {
+        if(self.get_overflow()) {
+            self.branch();
+        }
+    }
+
+    fn adc(&mut self, mode: Mode) {
+        let a = self.a;
+        let operand = self.read_operand(&mode);
+        let carry: u8;
+        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let result = a as u16 + operand as u16 + carry as u16;
+        self.set_overflow((a as u16 ^ result) & (operand as u16 ^ result) & 0x80 != 0);
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result as u8;
+    }
+
+    fn cli(&mut self, mode: Mode) {
+        self.set_interrupt_disable(false);
     }
 
     //Helper functions.
