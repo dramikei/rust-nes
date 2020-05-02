@@ -102,7 +102,16 @@ impl CPU {
                 0x39 => self.and(Mode::AbsoluteY),
                 0x3d => self.and(Mode::AbsoluteX),
                 0x3e => self.rol(Mode::AbsoluteX),
-
+                0x40 => self.rti(Mode::Implied),
+                0x41 => self.eor(Mode::IndirectX),
+                0x45 => self.eor(Mode::ZeroPage),
+                0x46 => self.lsr(Mode::ZeroPage),
+                0x48 => self.pha(Mode::Implied),
+                0x49 => self.eor(Mode::Immediate),
+                0x4a => self.lsr_a(),
+                0x4c => self.jmp(Mode::Absolute),
+                0x4d => self.eor(Mode::Absolute),
+                0x4e => self.lsr(Mode::Absolute),
 
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
@@ -223,6 +232,47 @@ impl CPU {
 
     fn sec(&mut self, mode: Mode) {
         self.set_carry(true);
+    }
+
+    fn rti(&mut self, mode: Mode) {
+        self.p = self.pop_from_stack();
+        self.pc = self.pop_from_stack() as u16;
+        self.pc |= (self.pop_from_stack() as u16) << 8;
+    }
+
+    fn eor(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        let result = self.a ^ operand;
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn lsr(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let result = operand >> 1;
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+    }
+
+    fn lsr_a(&mut self) {
+        let operand = self.a;
+        let result = operand >> 1;
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn pha(&mut self, mode: Mode) {
+        self.push_to_stack(self.a);
+    }
+
+    fn jmp(&mut self, mode: Mode) {
+        self.pc = self.operand_address(&mode);
     }
 
     //Helper functions.
