@@ -179,6 +179,26 @@ impl CPU {
                 0xbc => self.ldy(Mode::AbsoluteX),
                 0xbd => self.lda(Mode::AbsoluteX),
                 0xbe => self.ldx(Mode::AbsoluteY),
+                0xc0 => self.cpy(Mode::Immediate),
+                0xc1 => self.cmp(Mode::IndirectX),
+                0xc4 => self.cpy(Mode::ZeroPage),
+                0xc5 => self.cmp(Mode::ZeroPage),
+                0xc6 => self.dec(Mode::ZeroPage),
+                0xc8 => self.iny(Mode::Implied),
+                0xc9 => self.cmp(Mode::Immediate),
+                0xca => self.dex(Mode::Implied),
+                0xcc => self.cpy(Mode::Absolute),
+                0xcd => self.cmp(Mode::Absolute),
+                0xce => self.dec(Mode::Absolute),
+                0xd0 => self.bne(Mode::Relative),
+                0xd1 => self.cmp(Mode::IndirectY),
+                0xd5 => self.cmp(Mode::ZeroPageX),
+                0xd6 => self.dec(Mode::ZeroPageX),
+                0xd8 => self.cld(Mode::Implied),
+                0xd9 => self.cmp(Mode::AbsoluteY),
+                0xdd => self.cmp(Mode::AbsoluteX),
+                0xde => self.dec(Mode::AbsoluteX),
+
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
@@ -495,6 +515,53 @@ impl CPU {
         self.set_negative((self.x & 0x80) > 0);
     }
 
+    fn cpy(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        let y = self.y;
+        self.set_zero(y.wrapping_sub(operand) == 0);
+        self.set_negative((y.wrapping_sub(operand) & 0x80) > 0);
+        self.set_carry(y >= operand);
+    }
+
+    fn cmp(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        let a = self.a;
+        self.set_zero(a.wrapping_sub(operand) == 0);
+        self.set_negative((a.wrapping_sub(operand) & 0x80) > 0);
+        self.set_carry(a >= operand);
+    }
+
+    fn dec(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let result = operand.wrapping_sub(1);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+    }
+
+    fn iny(&mut self, mode: Mode) {
+        let result = self.y.wrapping_add(1);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.y = result;
+    }
+
+    fn dex(&mut self, mode: Mode) {
+        let result = self.x.wrapping_sub(1);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.x = result;
+    }
+
+    fn bne(&mut self, mode: Mode) {
+        if !self.get_zero() { self.branch() };
+    }
+ 
+    fn cld(&mut self, mode: Mode) {
+        self.set_decimal(false);
+    }
+
     //Helper functions.
 
     fn branch(&mut self) {
@@ -618,6 +685,9 @@ impl CPU {
     pub fn get_interrupt_disable(&mut self) -> bool {
         if (self.p & 0b00000100) == 1 { return true } else { return false };
     }
+    pub fn get_decimal(&mut self) -> bool {
+        if (self.p & 0b00001000) == 1 { return true } else { return false };
+    }
     pub fn get_break(&mut self) -> bool {
         if (self.p & 0b00010000) == 1 { return true } else { return false };
     }
@@ -653,6 +723,14 @@ impl CPU {
             self.p |= 0b00000100;    
         } else {
             self.p &= !0b00000100;
+        }
+    }
+
+    pub fn set_decimal(&mut self, val: bool) {
+        if val {
+            self.p |= 0b00001000;    
+        } else {
+            self.p &= !0b00001000;
         }
     }
 
