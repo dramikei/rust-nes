@@ -130,7 +130,24 @@ impl CPU {
                 0x6c => self.jmp(Mode::Indirect),
                 0x6d => self.adc(Mode::Absolute),
                 0x6e => self.ror(Mode::Absolute),
-                
+                0x70 => self.bvs(Mode::Relative),
+                0x71 => self.adc(Mode::IndirectY),
+                0x75 => self.adc(Mode::ZeroPageX),
+                0x76 => self.ror(Mode::ZeroPageX),
+                0x78 => self.sei(Mode::Implied),
+                0x79 => self.adc(Mode::AbsoluteY),
+                0x7d => self.adc(Mode::AbsoluteX),
+                0x7e => self.ror(Mode::AbsoluteX),
+                0x81 => self.sta(Mode::IndirectX),
+                0x84 => self.sty(Mode::ZeroPage),
+                0x85 => self.sta(Mode::ZeroPage),
+                0x86 => self.stx(Mode::ZeroPage),
+                0x88 => self.dey(Mode::Implied),
+                0x8a => self.txa(Mode::Implied),
+                0x8c => self.sty(Mode::Absolute),
+                0x8d => self.sta(Mode::Absolute),
+                0x8e => self.stx(Mode::Absolute),
+
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
@@ -286,9 +303,7 @@ impl CPU {
     }
 
     fn bvc(&mut self, mode: Mode) {
-        if self.get_overflow() {
-            self.branch();
-        }
+        if !self.get_overflow() { self.branch() };
     }
 
     fn adc(&mut self, mode: Mode) {
@@ -339,6 +354,46 @@ impl CPU {
 
     fn pla(&mut self, mode: Mode) {
         let result = self.pop_from_stack();
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn bvs(&mut self, mode: Mode) {
+        if self.get_overflow() { self.branch() };
+     }
+
+     fn sei(&mut self, mode: Mode) {
+        self.set_interrupt_disable(true);
+    }
+
+    fn sty(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let value = self.y;
+        self.write(address, value);
+    }
+
+    fn sta(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let value = self.a;
+        self.write(address, value);
+    }
+
+    fn stx(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let value = self.x;
+        self.write(address, value);
+    }
+
+    fn dey(&mut self, mode: Mode) {
+        let result = self.y.wrapping_sub(1);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.y = result;
+    }
+
+    fn txa(&mut self, mode: Mode) {
+        let result = self.x;
         self.set_zero(result == 0);
         self.set_negative((result & 0x80) > 0);
         self.a = result;
