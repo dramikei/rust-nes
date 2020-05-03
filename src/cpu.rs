@@ -156,6 +156,18 @@ impl CPU {
                 0x99 => self.sta(Mode::AbsoluteY),
                 0x9a => self.txs(Mode::Implied),
                 0x9d => self.sta(Mode::AbsoluteX),
+                0xa0 => self.ldy(Mode::Immediate),
+                0xa1 => self.lda(Mode::IndirectX),
+                0xa2 => self.ldx(Mode::Immediate),
+                0xa4 => self.ldy(Mode::ZeroPage),
+                0xa5 => self.lda(Mode::ZeroPage),
+                0xa6 => self.ldx(Mode::ZeroPage),
+                0xa8 => self.tay(Mode::Implied),
+                0xa9 => self.lda(Mode::Immediate),
+                0xaa => self.tax(Mode::Implied),
+                0xac => self.ldy(Mode::Absolute),
+                0xad => self.lda(Mode::Absolute),
+                0xae => self.ldx(Mode::Absolute),
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
@@ -421,6 +433,41 @@ impl CPU {
     fn txs(&mut self, mode: Mode) {
         let result = self.x;
         self.sp = result;
+    }
+
+    fn ldy(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        self.set_zero(operand == 0);
+        self.set_negative((operand & 0x80) > 0);
+        self.y = operand;
+    }
+
+    fn lda(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        self.set_zero(operand == 0);
+        self.set_negative((operand & 0x80) > 0);
+        self.a = operand;
+    }
+
+    fn ldx(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        self.set_zero(operand == 0);
+        self.set_negative((operand & 0x80) > 0);
+        self.x = operand;
+    }
+
+    fn tay(&mut self, mode: Mode) {
+        let result = self.a;
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.y = result;
+    }
+
+    fn tax(&mut self, mode: Mode) {
+        let result = self.a;
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.x = result;
     }
 
     //Helper functions.
