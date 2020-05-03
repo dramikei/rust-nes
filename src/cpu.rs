@@ -168,6 +168,17 @@ impl CPU {
                 0xac => self.ldy(Mode::Absolute),
                 0xad => self.lda(Mode::Absolute),
                 0xae => self.ldx(Mode::Absolute),
+                0xb0 => self.bcs(Mode::Relative),
+                0xb1 => self.lda(Mode::IndirectY),
+                0xb4 => self.ldy(Mode::ZeroPageX),
+                0xb5 => self.lda(Mode::ZeroPageX),
+                0xb6 => self.ldx(Mode::ZeroPageX),
+                0xb8 => self.clv(Mode::Implied),
+                0xb9 => self.lda(Mode::AbsoluteY),
+                0xba => self.tsx(Mode::Implied),
+                0xbc => self.ldy(Mode::AbsoluteX),
+                0xbd => self.lda(Mode::AbsoluteX),
+                0xbe => self.ldx(Mode::AbsoluteY),
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
@@ -468,6 +479,20 @@ impl CPU {
         self.set_zero(result == 0);
         self.set_negative((result & 0x80) > 0);
         self.x = result;
+    }
+
+    fn bcs(&mut self, mode: Mode) {
+        if self.get_carry() { self.branch() }
+    }
+
+    fn clv(&mut self, mode: Mode) {
+        self.set_overflow(false);
+    }
+
+    fn tsx(&mut self, mode: Mode) {
+        self.x = self.sp;
+        self.set_zero(self.x == 0);
+        self.set_negative((self.x & 0x80) > 0);
     }
 
     //Helper functions.
