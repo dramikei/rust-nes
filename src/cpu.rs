@@ -147,7 +147,15 @@ impl CPU {
                 0x8c => self.sty(Mode::Absolute),
                 0x8d => self.sta(Mode::Absolute),
                 0x8e => self.stx(Mode::Absolute),
-
+                0x90 => self.bcc(Mode::Relative),
+                0x91 => self.sta(Mode::IndirectY),
+                0x94 => self.sty(Mode::ZeroPageX),
+                0x95 => self.sta(Mode::ZeroPageX),
+                0x96 => self.stx(Mode::ZeroPageY),
+                0x98 => self.tya(Mode::Implied),
+                0x99 => self.sta(Mode::AbsoluteY),
+                0x9a => self.txs(Mode::Implied),
+                0x9d => self.sta(Mode::AbsoluteX),
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
@@ -397,6 +405,22 @@ impl CPU {
         self.set_zero(result == 0);
         self.set_negative((result & 0x80) > 0);
         self.a = result;
+    }
+
+    fn bcc(&mut self, mode: Mode) {
+        if !self.get_carry() { self.branch() };
+    }
+
+    fn tya(&mut self, mode: Mode) {
+        let result = self.y;
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn txs(&mut self, mode: Mode) {
+        let result = self.x;
+        self.sp = result;
     }
 
     //Helper functions.
