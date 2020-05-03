@@ -120,7 +120,17 @@ impl CPU {
                 0x59 => self.eor(Mode::AbsoluteY),
                 0x5d => self.eor(Mode::AbsoluteX),
                 0x5e => self.lsr(Mode::AbsoluteX),
-
+                0x60 => self.rts(Mode::Implied),
+                0x61 => self.adc(Mode::IndirectX),
+                0x65 => self.adc(Mode::ZeroPage),
+                0x66 => self.ror(Mode::ZeroPage),
+                0x68 => self.pla(Mode::Implied),
+                0x69 => self.adc(Mode::Immediate),
+                0x6a => self.ror_a(),
+                0x6c => self.jmp(Mode::Indirect),
+                0x6d => self.adc(Mode::Absolute),
+                0x6e => self.ror(Mode::Absolute),
+                
 
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
@@ -276,7 +286,7 @@ impl CPU {
     }
 
     fn bvc(&mut self, mode: Mode) {
-        if(self.get_overflow()) {
+        if self.get_overflow() {
             self.branch();
         }
     }
@@ -296,6 +306,42 @@ impl CPU {
 
     fn cli(&mut self, mode: Mode) {
         self.set_interrupt_disable(false);
+    }
+
+    fn rts(&mut self, mode: Mode) {
+        self.pc = self.pop_from_stack() as u16;
+        self.pc |= (self.pop_from_stack() as u16) << 8;
+        self.pc +=1;
+    }
+
+    fn ror(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let carry: u8;
+        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let result = (operand >> 1) | (carry << 7);
+        self.set_carry(operand & 1 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+    }
+
+    fn ror_a(&mut self) {
+        let operand = self.a;
+        let carry:u8;
+        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let result = (operand >> 1) | (carry << 7);
+        self.set_carry(operand & 1 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn pla(&mut self, mode: Mode) {
+        let result = self.pop_from_stack();
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
     }
 
     //Helper functions.
