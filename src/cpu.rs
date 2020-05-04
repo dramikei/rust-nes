@@ -21,7 +21,7 @@ pub enum Mode {
     Indirect,
     IndirectX,
     IndirectY,
-    Implied
+    Implied,
 }
 
 pub enum Interrupt {
@@ -34,29 +34,28 @@ pub enum Interrupt {
 pub struct CPU {
     pub bus: BUS,
     cycles: usize,
-    pub a:u8,
-    pub x:u8,
-    pub y:u8,
+    pub a: u8,
+    pub x: u8,
+    pub y: u8,
 
-    pub p:u8,
-    pub sp:u8,
-    pub pc:u16,
-    
+    pub p: u8,
+    pub sp: u8,
+    pub pc: u16,
 }
 
 //TODO: Check if flags work correctly. Places of problems: Reset() set_*FLAG*()
 impl CPU {
     pub fn new(bus: BUS) -> CPU {
-        CPU{
+        CPU {
             bus,
-            cycles:0,
-            a:0,
-            x:0,
-            y:0,
+            cycles: 0,
+            a: 0,
+            x: 0,
+            y: 0,
 
-            p:0b00100000,
-            sp:0,
-            pc:0,
+            p: 0b00100000,
+            sp: 0,
+            pc: 0,
         }
     }
 
@@ -217,9 +216,8 @@ impl CPU {
                 0xf9 => self.sbc(Mode::AbsoluteY),
                 0xfd => self.sbc(Mode::AbsoluteX),
                 0xff => self.inc(Mode::AbsoluteX),
-                _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
+                _ => self.nop(Mode::Implied),
             }
-            
             self.set_unused();
         }
         self.cycles -= 1;
@@ -261,7 +259,9 @@ impl CPU {
     }
 
     fn bpl(&mut self, mode: Mode) {
-        if !self.get_negative() { self.branch() };
+        if !self.get_negative() {
+            self.branch()
+        };
     }
 
     fn clc(&mut self, mode: Mode) {
@@ -297,7 +297,11 @@ impl CPU {
         let address = self.operand_address(&mode);
         let operand = self.read(address);
         let carry: u8;
-        if self.get_carry() { carry = 1 } else { carry = 0 };
+        if self.get_carry() {
+            carry = 1
+        } else {
+            carry = 0
+        };
         let result = (operand << 1) | carry;
         self.set_carry(operand & 0b10000000 != 0);
         self.set_zero(result == 0);
@@ -308,7 +312,11 @@ impl CPU {
     fn rol_a(&mut self) {
         let operand = self.a;
         let carry: u8;
-        if self.get_carry() { carry = 1 } else { carry = 0 };
+        if self.get_carry() {
+            carry = 1
+        } else {
+            carry = 0
+        };
         let result = (operand << 1) | carry;
         self.set_carry(operand & 0b10000000 != 0);
         self.set_zero(result == 0);
@@ -322,7 +330,9 @@ impl CPU {
     }
 
     fn bmi(&mut self, mode: Mode) {
-        if self.get_negative() { self.branch() }
+        if self.get_negative() {
+            self.branch()
+        }
     }
 
     fn sec(&mut self, mode: Mode) {
@@ -371,14 +381,20 @@ impl CPU {
     }
 
     fn bvc(&mut self, mode: Mode) {
-        if !self.get_overflow() { self.branch() };
+        if !self.get_overflow() {
+            self.branch()
+        };
     }
 
     fn adc(&mut self, mode: Mode) {
         let a = self.a;
         let operand = self.read_operand(&mode);
         let carry: u8;
-        if self.get_carry() { carry = 1 } else { carry = 0 };
+        if self.get_carry() {
+            carry = 1
+        } else {
+            carry = 0
+        };
         let result = a as u16 + operand as u16 + carry as u16;
         self.set_overflow((a as u16 ^ result) & (operand as u16 ^ result) & 0x80 != 0);
         self.set_carry(operand & 0b10000000 != 0);
@@ -394,14 +410,18 @@ impl CPU {
     fn rts(&mut self, mode: Mode) {
         self.pc = self.pop_from_stack() as u16;
         self.pc |= (self.pop_from_stack() as u16) << 8;
-        self.pc +=1;
+        self.pc += 1;
     }
 
     fn ror(&mut self, mode: Mode) {
         let address = self.operand_address(&mode);
         let operand = self.read(address);
         let carry: u8;
-        if self.get_carry() { carry = 1 } else { carry = 0 };
+        if self.get_carry() {
+            carry = 1
+        } else {
+            carry = 0
+        };
         let result = (operand >> 1) | (carry << 7);
         self.set_carry(operand & 1 != 0);
         self.set_zero(result == 0);
@@ -411,8 +431,12 @@ impl CPU {
 
     fn ror_a(&mut self) {
         let operand = self.a;
-        let carry:u8;
-        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let carry: u8;
+        if self.get_carry() {
+            carry = 1
+        } else {
+            carry = 0
+        };
         let result = (operand >> 1) | (carry << 7);
         self.set_carry(operand & 1 != 0);
         self.set_zero(result == 0);
@@ -428,10 +452,12 @@ impl CPU {
     }
 
     fn bvs(&mut self, mode: Mode) {
-        if self.get_overflow() { self.branch() };
-     }
+        if self.get_overflow() {
+            self.branch()
+        };
+    }
 
-     fn sei(&mut self, mode: Mode) {
+    fn sei(&mut self, mode: Mode) {
         self.set_interrupt_disable(true);
     }
 
@@ -468,7 +494,9 @@ impl CPU {
     }
 
     fn bcc(&mut self, mode: Mode) {
-        if !self.get_carry() { self.branch() };
+        if !self.get_carry() {
+            self.branch()
+        };
     }
 
     fn tya(&mut self, mode: Mode) {
@@ -519,7 +547,9 @@ impl CPU {
     }
 
     fn bcs(&mut self, mode: Mode) {
-        if self.get_carry() { self.branch() }
+        if self.get_carry() {
+            self.branch()
+        }
     }
 
     fn clv(&mut self, mode: Mode) {
@@ -572,9 +602,10 @@ impl CPU {
     }
 
     fn bne(&mut self, mode: Mode) {
-        if !self.get_zero() { self.branch() };
+        if !self.get_zero() {
+            self.branch()
+        };
     }
- 
     fn cld(&mut self, mode: Mode) {
         self.set_decimal(false);
     }
@@ -590,8 +621,12 @@ impl CPU {
     fn sbc(&mut self, mode: Mode) {
         let a = self.a;
         let operand = !self.read_operand(&mode);
-        let carry:u8;
-        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let carry: u8;
+        if self.get_carry() {
+            carry = 1
+        } else {
+            carry = 0
+        };
         let result = a as u16 + operand as u16 + carry as u16;
         self.set_overflow((a as u16 ^ result) & (operand as u16 ^ result) & 0x80 != 0);
         self.set_carry(operand & 0b10000000 != 0);
@@ -619,7 +654,9 @@ impl CPU {
     fn nop(&mut self, mode: Mode) {}
 
     fn beq(&mut self, mode: Mode) {
-        if self.get_zero() { self.branch() };
+        if self.get_zero() {
+            self.branch()
+        };
     }
 
     fn sed(&mut self, mode: Mode) {
@@ -627,6 +664,10 @@ impl CPU {
     }
 
     //Helper functions.
+
+    pub fn complete(&mut self) -> bool {
+        self.cycles == 0
+    }
 
     fn branch(&mut self) {
         //TODO: CHECK CYCLES.
@@ -636,24 +677,83 @@ impl CPU {
     }
 
     fn read_operand(&mut self, mode: &Mode) -> u8 {
-        let address:u16 = self.operand_address(mode);
+        let address: u16 = self.operand_address(mode);
         self.read(address)
     }
 
     fn operand_address(&mut self, mode: &Mode) -> u16 {
         match mode {
-            _ => panic!("operand_address called on unimplemented AddressMode!",)
+            Mode::Immediate => {
+                let original_pc = self.pc;
+                self.increment_pc();
+                original_pc
+            }
+            Mode::ZeroPage => self.next_byte() as u16,
+            Mode::ZeroPageX => {
+                low_byte(offset(self.next_byte(), self.x))
+            }
+            Mode::ZeroPageY => {
+                low_byte(offset(self.next_byte(), self.y))
+            }
+            Mode::Absolute => self.next_word(),
+            Mode::AbsoluteX => {
+                let base = self.next_word();
+                offset(base, self.x)
+            }
+            Mode::AbsoluteY => {
+                let base = self.next_word();
+                offset(base, self.y)
+            }
+            Mode::Indirect => {
+                let i = self.next_word();
+                let x = self.read(i);
+                let y = self.read(high_byte(i) | low_byte(i + 1));
+                return ((y as u16) << 8) | (x as u16);
+            }
+            Mode::IndirectX => {
+                let i = offset(self.next_byte(), self.x);
+                let x = self.read(low_byte(i));
+                let y = self.read(low_byte(i + 1));
+                return ((y as u16) << 8) | (x as u16);
+            }
+            Mode::IndirectY => {
+                let i = self.next_byte();
+                let x = self.read(i as u16);
+                let y = self.read(low_byte(i + 1));
+                let base = ((y as u16) << 8) | (x as u16);
+                offset(base, self.y)
+            }
+            _ => panic!("Error: Unknown mode to read from memory"),
         }
     }
 
+    fn increment_pc(&mut self) {
+        self.pc = self.pc.wrapping_add(1);
+    }
+
+    fn next_byte(&mut self) -> u8 {
+        let original_pc = self.pc;
+        self.increment_pc();
+        self.read(original_pc)
+    }
+
+    fn next_word(&mut self) -> u16 {
+        let original_pc: u16 = self.pc;
+        self.increment_pc();
+        self.increment_pc();
+        let x = self.read(original_pc);
+        let y = self.read(original_pc+1);
+        return ((y as u16) << 8) | (x as u16);
+    }
+
     fn push_to_stack(&mut self, val: u8) {
-        self.write(0x100+(self.sp as u16), val);
+        self.write(0x100 + (self.sp as u16), val);
         self.sp -= 1;
     }
 
     fn pop_from_stack(&mut self) -> u8 {
         self.sp += 1;
-        self.read(0x100+(self.sp as u16))
+        self.read(0x100 + (self.sp as u16))
     }
 
     //Read are write functions are here to make CPU struct project-independent.
@@ -674,7 +774,7 @@ impl CPU {
                 self.pc -= 1;
                 self.brk(); //Calling BREAK instruction. BREAK instruction increments pc by 1 where as interrupt does not.
             }
-            _ => panic!("Unimplemented Interrupt called!")
+            _ => panic!("Unimplemented Interrupt called!"),
         }
     }
 
@@ -705,7 +805,7 @@ impl CPU {
             self.push_to_stack(self.p);
 
             let lo = self.read(0xFFFE);
-            let hi = self.read(0xFFFE+1);
+            let hi = self.read(0xFFFE + 1);
             self.pc = ((hi as u16) << 8) | lo as u16;
             self.cycles = 7;
         }
@@ -721,7 +821,7 @@ impl CPU {
         self.push_to_stack(self.p);
 
         let lo = self.read(0xFFFA);
-        let hi = self.read(0xFFFA+1);
+        let hi = self.read(0xFFFA + 1);
         self.pc = ((hi as u16) << 8) | lo as u16;
         self.cycles = 8;
     }
@@ -740,29 +840,61 @@ impl CPU {
 
     //Get Flags
     pub fn get_carry(&mut self) -> bool {
-        if (self.p & 0b00000001) == 1 { return true } else { return false };
+        if (self.p & 0b00000001) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
 
     pub fn get_zero(&mut self) -> bool {
-        if (self.p & 0b00000010) == 1 { return true } else { return false };
+        if (self.p & 0b00000010) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
     pub fn get_interrupt_disable(&mut self) -> bool {
-        if (self.p & 0b00000100) == 1 { return true } else { return false };
+        if (self.p & 0b00000100) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
     pub fn get_decimal(&mut self) -> bool {
-        if (self.p & 0b00001000) == 1 { return true } else { return false };
+        if (self.p & 0b00001000) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
     pub fn get_break(&mut self) -> bool {
-        if (self.p & 0b00010000) == 1 { return true } else { return false };
+        if (self.p & 0b00010000) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
     pub fn get_unsed(&mut self) -> bool {
-        if (self.p & 0b00100000) == 1 { return true } else { return false };
+        if (self.p & 0b00100000) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
     pub fn get_overflow(&mut self) -> bool {
-        if (self.p & 0b01000000) == 1 { return true } else { return false };
+        if (self.p & 0b01000000) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
     pub fn get_negative(&mut self) -> bool {
-        if (self.p & 0b10000000) == 1 { return true } else { return false };
+        if (self.p & 0b10000000) == 1 {
+            return true;
+        } else {
+            return false;
+        };
     }
 
     //Set Flags
@@ -776,7 +908,7 @@ impl CPU {
 
     pub fn set_zero(&mut self, val: bool) {
         if val {
-            self.p |= 0b00000010;    
+            self.p |= 0b00000010;
         } else {
             self.p &= !0b00000010;
         }
@@ -784,7 +916,7 @@ impl CPU {
 
     pub fn set_interrupt_disable(&mut self, val: bool) {
         if val {
-            self.p |= 0b00000100;    
+            self.p |= 0b00000100;
         } else {
             self.p &= !0b00000100;
         }
@@ -792,7 +924,7 @@ impl CPU {
 
     pub fn set_decimal(&mut self, val: bool) {
         if val {
-            self.p |= 0b00001000;    
+            self.p |= 0b00001000;
         } else {
             self.p &= !0b00001000;
         }
@@ -800,7 +932,7 @@ impl CPU {
 
     pub fn set_break(&mut self, val: bool) {
         if val {
-            self.p |= 0b00010000;    
+            self.p |= 0b00010000;
         } else {
             self.p &= !0b00010000;
         }
@@ -812,7 +944,7 @@ impl CPU {
 
     pub fn set_overflow(&mut self, val: bool) {
         if val {
-            self.p |= 0b01000000;    
+            self.p |= 0b01000000;
         } else {
             self.p &= !0b01000000;
         }
@@ -825,5 +957,15 @@ impl CPU {
             self.p &= !0b10000000;
         }
     }
+}
+fn high_byte(value: u16) -> u16 {
+    value & 0xFF00
+}
 
+pub fn low_byte<T: Into<u16>>(value: T) -> u16 {
+    value.into() & 0xFF
+}
+
+fn offset<T: Into<u16>>(base: T, offset: u8) -> u16 {
+    base.into() + offset as u16
 }
