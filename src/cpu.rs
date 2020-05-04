@@ -198,8 +198,25 @@ impl CPU {
                 0xd9 => self.cmp(Mode::AbsoluteY),
                 0xdd => self.cmp(Mode::AbsoluteX),
                 0xde => self.dec(Mode::AbsoluteX),
-
-
+                0xe0 => self.cpx(Mode::Immediate),
+                0xe1 => self.sbc(Mode::IndirectX),
+                0xe4 => self.cpx(Mode::ZeroPage),
+                0xe5 => self.sbc(Mode::ZeroPage),
+                0xe6 => self.inc(Mode::ZeroPage),
+                0xe8 => self.inx(Mode::Implied),
+                0xe9 => self.sbc(Mode::Immediate),
+                0xea => self.nop(Mode::Implied),
+                0xec => self.cpx(Mode::Absolute),
+                0xed => self.sbc(Mode::Absolute),
+                0xee => self.inc(Mode::Absolute),
+                0xf0 => self.beq(Mode::Relative),
+                0xf1 => self.sbc(Mode::IndirectY),
+                0xf5 => self.sbc(Mode::ZeroPageX),
+                0xf6 => self.inc(Mode::ZeroPageX),
+                0xf8 => self.sed(Mode::Implied),
+                0xf9 => self.sbc(Mode::AbsoluteY),
+                0xfd => self.sbc(Mode::AbsoluteX),
+                0xff => self.inc(Mode::AbsoluteX),
                 _ => panic!("Unimplemented OPCODE: {:04x}",opcode)
             }
             
@@ -560,6 +577,53 @@ impl CPU {
  
     fn cld(&mut self, mode: Mode) {
         self.set_decimal(false);
+    }
+
+    fn cpx(&mut self, mode: Mode) {
+        let operand = self.read_operand(&mode);
+        let x = self.x;
+        self.set_zero(x.wrapping_sub(operand) == 0);
+        self.set_negative((x.wrapping_sub(operand) & 0x80) > 0);
+        self.set_carry(x >= operand);
+    }
+
+    fn sbc(&mut self, mode: Mode) {
+        let a = self.a;
+        let operand = !self.read_operand(&mode);
+        let carry:u8;
+        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let result = a as u16 + operand as u16 + carry as u16;
+        self.set_overflow((a as u16 ^ result) & (operand as u16 ^ result) & 0x80 != 0);
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result as u8;
+    }
+
+    fn inc(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let result = operand.wrapping_add(1);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+    }
+
+    fn inx(&mut self, mode: Mode) {
+        let result = self.x.wrapping_add(1);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.x = result;
+    }
+
+    fn nop(&mut self, mode: Mode) {}
+
+    fn beq(&mut self, mode: Mode) {
+        if self.get_zero() { self.branch() };
+    }
+
+    fn sed(&mut self, mode: Mode) {
+        self.set_decimal(true);
     }
 
     //Helper functions.
