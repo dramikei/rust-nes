@@ -1,5 +1,8 @@
 /target
 src/rom/invaders.rom
+src/*.nes
+src/rom/*.*
+src/*.txt
 **/*.rs.bk
 
 # Created by https://www.gitignore.io/api/vim,rust,macos,visualstudiocode

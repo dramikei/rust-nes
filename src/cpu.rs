@@ -1,4 +1,6 @@
 use crate::bus::BUS;
+use std::fs::OpenOptions;
+use std::io::prelude::*;
 //  P -> Flag registor, each bit represents a flag.
 //  00000001 -> Carry Flag
 //  00000010 -> Zero flag
@@ -45,7 +47,7 @@ pub struct CPU {
 
 //TODO: Check if flags work correctly. Places of problems: Reset() set_*FLAG*()
 impl CPU {
-    pub fn new(bus: BUS) -> CPU {
+    pub fn new(bus: BUS) -> Self {
         CPU {
             bus,
             cycles: 0,
@@ -54,14 +56,29 @@ impl CPU {
             y: 0,
 
             p: 0b00100000,
-            sp: 0,
+            sp: 0xFD,
             pc: 0,
         }
     }
 
-    pub fn clock(&mut self) {
+    pub fn clock(&mut self, debug: bool) {
         if self.cycles == 0 {
             let opcode = self.read(self.pc);
+            let op_1 = self.read(self.pc+1);
+            let op_2 = self.read(self.pc+2);
+            if debug {
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .append(true)
+                    .open("log.txt")
+                    .unwrap();
+
+                if let Err(e) = writeln!(file, "{:04X}    {:02X} {:02X} {:02X}         A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:{}, CYC:{}",self.pc, opcode,op_1,op_2,self.a,self.x,self.y,self.p,self.sp,0,self.cycles) {
+                    panic!("Couldn't write to file: {}", e);
+                }
+                //C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD PPU:  0, 21 CYC:7
+                println!("{:04x}    {:02x} {:02x} {:02x}         A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x} PPU:{}, CYC:{}",self.pc, opcode,op_1,op_2,self.a,self.x,self.y,self.p,self.sp,0,self.cycles);
+            }
             self.set_unused(); //Always true
             self.pc += 1;
             match opcode {
@@ -220,7 +237,7 @@ impl CPU {
             }
             self.set_unused();
         }
-        self.cycles -= 1;
+        // self.cycles -= 1;
     }
 
     //Instructions.
@@ -259,9 +276,8 @@ impl CPU {
     }
 
     fn bpl(&mut self, mode: Mode) {
-        if !self.get_negative() {
-            self.branch()
-        };
+        let condition = !self.get_negative();
+        self.branch(condition);
     }
 
     fn clc(&mut self, mode: Mode) {
@@ -330,9 +346,8 @@ impl CPU {
     }
 
     fn bmi(&mut self, mode: Mode) {
-        if self.get_negative() {
-            self.branch()
-        }
+        let condition = self.get_negative();
+        self.branch(condition);
     }
 
     fn sec(&mut self, mode: Mode) {
@@ -378,12 +393,12 @@ impl CPU {
 
     fn jmp(&mut self, mode: Mode) {
         self.pc = self.operand_address(&mode);
+        // self.cycles = 7;
     }
 
     fn bvc(&mut self, mode: Mode) {
-        if !self.get_overflow() {
-            self.branch()
-        };
+        let condition = !self.get_overflow();
+        self.branch(condition);
     }
 
     fn adc(&mut self, mode: Mode) {
@@ -452,9 +467,8 @@ impl CPU {
     }
 
     fn bvs(&mut self, mode: Mode) {
-        if self.get_overflow() {
-            self.branch()
-        };
+        let condition = self.get_overflow();
+        self.branch(condition);
     }
 
     fn sei(&mut self, mode: Mode) {
@@ -494,9 +508,8 @@ impl CPU {
     }
 
     fn bcc(&mut self, mode: Mode) {
-        if !self.get_carry() {
-            self.branch()
-        };
+        let condition = !self.get_carry();
+        self.branch(condition);
     }
 
     fn tya(&mut self, mode: Mode) {
@@ -547,9 +560,8 @@ impl CPU {
     }
 
     fn bcs(&mut self, mode: Mode) {
-        if self.get_carry() {
-            self.branch()
-        }
+        let condition = self.get_carry();
+        self.branch(condition);
     }
 
     fn clv(&mut self, mode: Mode) {
@@ -602,9 +614,8 @@ impl CPU {
     }
 
     fn bne(&mut self, mode: Mode) {
-        if !self.get_zero() {
-            self.branch()
-        };
+        let condition = !self.get_zero();
+        self.branch(condition);
     }
     fn cld(&mut self, mode: Mode) {
         self.set_decimal(false);
@@ -654,9 +665,8 @@ impl CPU {
     fn nop(&mut self, mode: Mode) {}
 
     fn beq(&mut self, mode: Mode) {
-        if self.get_zero() {
-            self.branch()
-        };
+        let condition = self.get_zero();
+        self.branch(condition);
     }
 
     fn sed(&mut self, mode: Mode) {
@@ -669,11 +679,13 @@ impl CPU {
         self.cycles == 0
     }
 
-    fn branch(&mut self) {
+    fn branch(&mut self, condition: bool) {
         //TODO: CHECK CYCLES.
         let x = Mode::Immediate;
         let offset = self.read_operand(&x);
-        self.pc += offset as u16;
+        if condition {
+            self.pc += offset as u16;
+        }
     }
 
     fn read_operand(&mut self, mode: &Mode) -> u8 {
@@ -848,49 +860,49 @@ impl CPU {
     }
 
     pub fn get_zero(&mut self) -> bool {
-        if (self.p & 0b00000010) == 1 {
+        if (self.p & 0b00000010) == 0b00000010 {
             return true;
         } else {
             return false;
         };
     }
     pub fn get_interrupt_disable(&mut self) -> bool {
-        if (self.p & 0b00000100) == 1 {
+        if (self.p & 0b00000100) == 0b00000100 {
             return true;
         } else {
             return false;
         };
     }
     pub fn get_decimal(&mut self) -> bool {
-        if (self.p & 0b00001000) == 1 {
+        if (self.p & 0b00001000) == 0b00001000 {
             return true;
         } else {
             return false;
         };
     }
     pub fn get_break(&mut self) -> bool {
-        if (self.p & 0b00010000) == 1 {
+        if (self.p & 0b00010000) == 0b00010000 {
             return true;
         } else {
             return false;
         };
     }
     pub fn get_unsed(&mut self) -> bool {
-        if (self.p & 0b00100000) == 1 {
+        if (self.p & 0b00100000) == 0b00100000 {
             return true;
         } else {
             return false;
         };
     }
     pub fn get_overflow(&mut self) -> bool {
-        if (self.p & 0b01000000) == 1 {
+        if (self.p & 0b01000000) == 0b01000000 {
             return true;
         } else {
             return false;
         };
     }
     pub fn get_negative(&mut self) -> bool {
-        if (self.p & 0b10000000) == 1 {
+        if (self.p & 0b10000000) == 0b10000000 {
             return true;
         } else {
             return false;

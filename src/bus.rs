@@ -23,7 +23,7 @@ pub struct BUS {
 }
 
 impl BUS {
-    pub fn new() -> BUS {
+    pub fn new() -> Self {
         BUS {
             memory: [0;MEM_SIZE]
         }
