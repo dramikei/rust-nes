@@ -69,6 +69,7 @@ impl CPU {
             if debug {
                 let mut file = OpenOptions::new()
                     .write(true)
+                    .create(true)
                     .append(true)
                     .open("log.txt")
                     .unwrap();
@@ -304,7 +305,7 @@ impl CPU {
     fn bit(&mut self, mode: Mode) {
         let operand = self.read_operand(&mode);
         let result = self.a & operand;
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_overflow((operand & 0b01000000) != 0);
         self.set_negative((result & 0x80) > 0);
     }
@@ -319,8 +320,8 @@ impl CPU {
             carry = 0
         };
         let result = (operand << 1) | carry;
-        self.set_carry(operand & 0b10000000 != 0);
-        self.set_zero(result == 0);
+        self.set_carry(result > 0xff);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.write(address, result);
     }
@@ -335,7 +336,7 @@ impl CPU {
         };
         let result = (operand << 1) | carry;
         self.set_carry(operand & 0b10000000 != 0);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result;
     }
@@ -363,7 +364,7 @@ impl CPU {
     fn eor(&mut self, mode: Mode) {
         let operand = self.read_operand(&mode);
         let result = self.a ^ operand;
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result;
     }
@@ -373,7 +374,7 @@ impl CPU {
         let operand = self.read(address);
         let result = operand >> 1;
         self.set_carry(operand & 0b10000000 != 0);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.write(address, result);
     }
@@ -382,7 +383,7 @@ impl CPU {
         let operand = self.a;
         let result = operand >> 1;
         self.set_carry(operand & 0b10000000 != 0);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result;
     }
@@ -412,8 +413,8 @@ impl CPU {
         };
         let result = a as u16 + operand as u16 + carry as u16;
         self.set_overflow((a as u16 ^ result) & (operand as u16 ^ result) & 0x80 != 0);
-        self.set_carry(operand & 0b10000000 != 0);
-        self.set_zero(result == 0);
+        self.set_carry(result>0xff);
+        self.set_zero((result as u8) == 0);
         self.set_negative((result & 0x80) > 0);
         self.a = result as u8;
     }
@@ -439,7 +440,7 @@ impl CPU {
         };
         let result = (operand >> 1) | (carry << 7);
         self.set_carry(operand & 1 != 0);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.write(address, result);
     }
@@ -454,14 +455,14 @@ impl CPU {
         };
         let result = (operand >> 1) | (carry << 7);
         self.set_carry(operand & 1 != 0);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result;
     }
 
     fn pla(&mut self, mode: Mode) {
         let result = self.pop_from_stack();
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result;
     }
@@ -495,14 +496,14 @@ impl CPU {
 
     fn dey(&mut self, mode: Mode) {
         let result = self.y.wrapping_sub(1);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.y = result;
     }
 
     fn txa(&mut self, mode: Mode) {
         let result = self.x;
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result;
     }
@@ -514,7 +515,7 @@ impl CPU {
 
     fn tya(&mut self, mode: Mode) {
         let result = self.y;
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result;
     }
@@ -547,14 +548,14 @@ impl CPU {
 
     fn tay(&mut self, mode: Mode) {
         let result = self.a;
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.y = result;
     }
 
     fn tax(&mut self, mode: Mode) {
         let result = self.a;
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.x = result;
     }
@@ -594,21 +595,21 @@ impl CPU {
         let address = self.operand_address(&mode);
         let operand = self.read(address);
         let result = operand.wrapping_sub(1);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.write(address, result);
     }
 
     fn iny(&mut self, mode: Mode) {
         let result = self.y.wrapping_add(1);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.y = result;
     }
 
     fn dex(&mut self, mode: Mode) {
         let result = self.x.wrapping_sub(1);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.x = result;
     }
@@ -641,7 +642,7 @@ impl CPU {
         let result = a as u16 + operand as u16 + carry as u16;
         self.set_overflow((a as u16 ^ result) & (operand as u16 ^ result) & 0x80 != 0);
         self.set_carry(operand & 0b10000000 != 0);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.a = result as u8;
     }
@@ -650,14 +651,14 @@ impl CPU {
         let address = self.operand_address(&mode);
         let operand = self.read(address);
         let result = operand.wrapping_add(1);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.write(address, result);
     }
 
     fn inx(&mut self, mode: Mode) {
         let result = self.x.wrapping_add(1);
-        self.set_zero(result == 0);
+        self.set_zero((result as u8) == 0);;
         self.set_negative((result & 0x80) > 0);
         self.x = result;
     }
@@ -979,5 +980,5 @@ pub fn low_byte<T: Into<u16>>(value: T) -> u16 {
 }
 
 fn offset<T: Into<u16>>(base: T, offset: u8) -> u16 {
-    base.into() + offset as u16
+    base.into().wrapping_add(offset as u16) as u16
 }
