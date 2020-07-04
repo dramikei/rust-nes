@@ -233,7 +233,25 @@ impl CPU {
                 0xf8 => self.sed(Mode::Implied),
                 0xf9 => self.sbc(Mode::AbsoluteY),
                 0xfd => self.sbc(Mode::AbsoluteX),
-                0xff => self.inc(Mode::AbsoluteX),
+                0xfe => self.inc(Mode::AbsoluteX),
+
+
+                0x0C => self.nop_read(Mode::Absolute),
+                0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => self.nop_read(Mode::AbsoluteX),
+                0x04 | 0x44 | 0x64 => self.nop_read(Mode::ZeroPage),
+                0x14 | 0x34 | 0x54 | 0x74 | 0xd4 | 0xf4 => self.nop_read(Mode::ZeroPageX),
+                0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => self.nop_read(Mode::Immediate),
+                0xA7 => self.lax(Mode::ZeroPage),
+                0xB7 => self.lax(Mode::ZeroPageY),
+                0xA3 => self.lax(Mode::IndirectX),
+                0xB3 => self.lax(Mode::IndirectY),
+                0xAF => self.lax(Mode::Absolute),
+                0xBF => self.lax(Mode::AbsoluteY),
+                0x87 => self.sax(Mode::ZeroPage),
+                0x97 => self.sax(Mode::ZeroPageY),
+                0x83 => self.sax(Mode::IndirectX),
+                0x8F => self.sax(Mode::Absolute),
+                0xEB => self.sbc(Mode::Immediate),
                 _ => self.nop(Mode::Implied),
             }
             self.set_unused();
@@ -525,6 +543,11 @@ impl CPU {
         self.sp = result;
     }
 
+    fn lax(&mut self, mode: Mode) {
+        self.lda(mode);
+        self.x = self.a;
+    }
+
     fn ldy(&mut self, mode: Mode) {
         let operand = self.read_operand(&mode);
         self.set_zero(operand == 0);
@@ -665,6 +688,10 @@ impl CPU {
 
     fn nop(&mut self, mode: Mode) {}
 
+    fn nop_read(&mut self, mode: Mode) {
+        self.read_operand(&mode);
+    }
+
     fn beq(&mut self, mode: Mode) {
         let condition = self.get_zero();
         self.branch(condition);
@@ -672,6 +699,12 @@ impl CPU {
 
     fn sed(&mut self, mode: Mode) {
         self.set_decimal(true);
+    }
+
+    fn sax(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let result = self.a & self.x;
+        self.bus.write(address, result);
     }
 
     //Helper functions.
@@ -683,9 +716,9 @@ impl CPU {
     fn branch(&mut self, condition: bool) {
         //TODO: CHECK CYCLES.
         let x = Mode::Immediate;
-        let offset = self.read_operand(&x);
+        let offset = self.read_operand(&x) as i8 as u16;
         if condition {
-            self.pc += offset as u16;
+            self.pc = self.pc.wrapping_add(offset as u16);
         }
     }
 
