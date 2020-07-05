@@ -280,6 +280,30 @@ impl CPU {
                 0x0F => self.slo(Mode::Absolute),
                 0x1F => self.slo(Mode::AbsoluteX),
                 0x1B => self.slo(Mode::AbsoluteY),
+
+                0x27 => self.rla(Mode::ZeroPage),
+                0x37 => self.rla(Mode::ZeroPageX),
+                0x23 => self.rla(Mode::IndirectX),
+                0x33 => self.rla(Mode::IndirectY),
+                0x2F => self.rla(Mode::Absolute),
+                0x3F => self.rla(Mode::AbsoluteX),
+                0x3B => self.rla(Mode::AbsoluteY),
+
+                0x47 => self.sre(Mode::ZeroPage),
+                0x57 => self.sre(Mode::ZeroPageX),
+                0x43 => self.sre(Mode::IndirectX),
+                0x53 => self.sre(Mode::IndirectY),
+                0x4F => self.sre(Mode::Absolute),
+                0x5F => self.sre(Mode::AbsoluteX),
+                0x5B => self.sre(Mode::AbsoluteY),
+
+                0x67 => self.rra(Mode::ZeroPage),
+                0x77 => self.rra(Mode::ZeroPageX),
+                0x63 => self.rra(Mode::IndirectX),
+                0x73 => self.rra(Mode::IndirectY),
+                0x6F => self.rra(Mode::Absolute),
+                0x7F => self.rra(Mode::AbsoluteX),
+                0x7B => self.rra(Mode::AbsoluteY),
                 _ => self.nop(Mode::Implied),
             }
             self.set_unused();
@@ -313,6 +337,17 @@ impl CPU {
         self.set_zero((result & 0x00ff) == 0x00);
         self.set_negative((result & 0x80) > 0);
         self.a = result as u8;
+    }
+
+    fn asl_ret(&mut self, mode: Mode) -> u8 {
+        let address = self.operand_address(&mode);
+        let operand = self.bus.read(address);
+        let result: u16 = (operand as u16) << 1;
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero((result & 0x00ff) == 0x00);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result as u8);
+        result as u8
     }
 
     fn php(&mut self, mode: Mode) {
@@ -360,11 +395,7 @@ impl CPU {
         let address = self.operand_address(&mode);
         let operand = self.read(address);
         let carry: u8;
-        if self.get_carry() {
-            carry = 1
-        } else {
-            carry = 0
-        };
+        if self.get_carry() { carry = 1 } else { carry = 0 };
         let result = (operand << 1) | carry;
         self.set_carry(operand & 0b10000000 != 0);
         self.set_zero((result as u8) == 0);
@@ -385,6 +416,19 @@ impl CPU {
         self.set_zero((result as u8) == 0);
         self.set_negative((result & 0x80) > 0);
         self.a = result;
+    }
+
+    fn rol_ret(&mut self, mode: Mode) -> u8 {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let carry: u8;
+        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let result = (operand << 1) | carry;
+        self.set_carry(operand & 0b10000000 != 0);
+        self.set_zero((result as u8) == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+        result
     }
 
     fn plp(&mut self, mode: Mode) {
@@ -434,6 +478,17 @@ impl CPU {
         self.a = result;
     }
 
+    fn lsr_ret(&mut self, mode: Mode) -> u8 {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let result = operand >> 1;
+        self.set_carry(operand & 1 != 0);
+        self.set_zero((result as u8) == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+        result
+    }
+
     fn pha(&mut self, mode: Mode) {
         self.push_to_stack(self.a);
     }
@@ -479,11 +534,7 @@ impl CPU {
         let address = self.operand_address(&mode);
         let operand = self.read(address);
         let carry: u8;
-        if self.get_carry() {
-            carry = 1
-        } else {
-            carry = 0
-        };
+        if self.get_carry() { carry = 1 } else { carry = 0 };
         let result = (operand >> 1) | (carry << 7);
         self.set_carry(operand & 1 != 0);
         self.set_zero((result as u8) == 0);
@@ -504,6 +555,19 @@ impl CPU {
         self.set_zero((result as u8) == 0);
         self.set_negative((result & 0x80) > 0);
         self.a = result;
+    }
+
+    fn ror_ret(&mut self, mode: Mode) -> u8 {
+        let address = self.operand_address(&mode);
+        let operand = self.read(address);
+        let carry: u8;
+        if self.get_carry() { carry = 1 } else { carry = 0 };
+        let result = (operand >> 1) | (carry << 7);
+        self.set_carry(operand & 1 != 0);
+        self.set_zero((result as u8) == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.write(address, result);
+        result
     }
 
     fn pla(&mut self, mode: Mode) {
@@ -766,19 +830,35 @@ impl CPU {
     }
 
     fn slo(&mut self, mode: Mode) {
-        //ASL
-        let address = self.operand_address(&mode);
-        let operand = self.bus.read(address);
-        let res: u16 = (operand as u16) << 1;
-        self.set_carry(operand & 0b10000000 != 0);
-        // self.set_zero((res & 0x00ff) == 0x00);
-        // self.set_negative((res & 0x80) > 0);
-        self.write(address, res as u8);
-
-        let result = self.a | res as u8;
+        let result = self.a | self.asl_ret(mode);
         self.set_zero((result & 0x00ff) == 0x00);
         self.set_negative((result & 0x80) > 0);
         self.a = result;
+    }
+
+    fn rla(&mut self, mode: Mode) {
+        let result = self.a & self.rol_ret(mode);
+        self.set_zero((result as u8) == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+    
+    fn sre(&mut self, mode: Mode) {
+        let result = self.a ^ self.lsr_ret(mode);
+        self.set_zero((result as u8) == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
+    }
+
+    fn rra(&mut self, mode: Mode) {
+        let a = self.a;
+        let operand = self.ror_ret(mode);
+        let result = a as u16 + operand as u16 + self.get_carry() as u16;
+        self.set_carry(result > 0xFF);
+        self.set_overflow((a ^ (result as u8)) & (operand ^ (result as u8)) & 0x80 != 0);
+        self.set_zero((result as u8) == 0);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result as u8;
     }
 
     //Helper functions.
