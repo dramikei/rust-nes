@@ -5,7 +5,7 @@ use cpu::CPU;
 
 fn main() {
     println!("NES Started!");
-    let mut bus = BUS::new();
+    let bus = BUS::new();
     let mut cpu: CPU = CPU::new(bus);
     //////FOR TESTING///////
     load_test_rom(&mut cpu.bus);
