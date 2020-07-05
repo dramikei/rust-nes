@@ -235,23 +235,51 @@ impl CPU {
                 0xfd => self.sbc(Mode::AbsoluteX),
                 0xfe => self.inc(Mode::AbsoluteX),
 
+                //////// Undocumented Instructions ////////
 
                 0x0C => self.nop_read(Mode::Absolute),
                 0x1C | 0x3C | 0x5C | 0x7C | 0xDC | 0xFC => self.nop_read(Mode::AbsoluteX),
                 0x04 | 0x44 | 0x64 => self.nop_read(Mode::ZeroPage),
                 0x14 | 0x34 | 0x54 | 0x74 | 0xd4 | 0xf4 => self.nop_read(Mode::ZeroPageX),
                 0x80 | 0x82 | 0x89 | 0xc2 | 0xe2 => self.nop_read(Mode::Immediate),
+
                 0xA7 => self.lax(Mode::ZeroPage),
                 0xB7 => self.lax(Mode::ZeroPageY),
                 0xA3 => self.lax(Mode::IndirectX),
                 0xB3 => self.lax(Mode::IndirectY),
                 0xAF => self.lax(Mode::Absolute),
                 0xBF => self.lax(Mode::AbsoluteY),
+
                 0x87 => self.sax(Mode::ZeroPage),
                 0x97 => self.sax(Mode::ZeroPageY),
                 0x83 => self.sax(Mode::IndirectX),
                 0x8F => self.sax(Mode::Absolute),
+
                 0xEB => self.sbc(Mode::Immediate),
+
+                0xC7 => self.dcp(Mode::ZeroPage),
+                0xD7 => self.dcp(Mode::ZeroPageX),
+                0xC3 => self.dcp(Mode::IndirectX),
+                0xD3 => self.dcp(Mode::IndirectY),
+                0xCF => self.dcp(Mode::Absolute),
+                0xDF => self.dcp(Mode::AbsoluteX),
+                0xDB => self.dcp(Mode::AbsoluteY),
+
+                0xE7 => self.isc(Mode::ZeroPage),
+                0xF7 => self.isc(Mode::ZeroPageX),
+                0xE3 => self.isc(Mode::IndirectX),
+                0xF3 => self.isc(Mode::IndirectY),
+                0xEF => self.isc(Mode::Absolute),
+                0xFF => self.isc(Mode::AbsoluteX),
+                0xFB => self.isc(Mode::AbsoluteY),
+
+                0x07 => self.slo(Mode::ZeroPage),
+                0x17 => self.slo(Mode::ZeroPageX),
+                0x03 => self.slo(Mode::IndirectX),
+                0x13 => self.slo(Mode::IndirectY),
+                0x0F => self.slo(Mode::Absolute),
+                0x1F => self.slo(Mode::AbsoluteX),
+                0x1B => self.slo(Mode::AbsoluteY),
                 _ => self.nop(Mode::Implied),
             }
             self.set_unused();
@@ -705,6 +733,52 @@ impl CPU {
         let address = self.operand_address(&mode);
         let result = self.a & self.x;
         self.bus.write(address, result);
+    }
+
+    fn dcp(&mut self, mode: Mode) {
+        let address = self.operand_address(&mode);
+        let operand = self.bus.read(address);
+        let result = operand.wrapping_sub(1);
+        self.bus.write(address, result);
+        let a = self.a;
+        self.set_zero((a.wrapping_sub(result) as u8) == 0);
+        self.set_negative((a.wrapping_sub(result) & 0b10000000) != 0);
+        self.set_carry(a >= result);
+    }
+
+    fn isc(&mut self, mode: Mode) {
+        //Incrementing
+        let address = self.operand_address(&mode);
+        let operand = self.bus.read(address);
+        let result = operand.wrapping_add(1);
+        self.bus.write(address, result);
+        
+        //reasigning operand
+        let operand = !result;
+
+        let a = self.a;
+        let result = a as u16 + operand as u16 + self.get_carry() as u16;
+        self.set_carry(result > 0xFF);
+        self.set_overflow((a ^ (result as u8)) & (operand ^ (result as u8)) & 0x80 != 0);
+        self.set_zero(result == 0);
+        self.set_negative((result & 0b10000000) != 0);
+        self.a = result as u8;
+    }
+
+    fn slo(&mut self, mode: Mode) {
+        //ASL
+        let address = self.operand_address(&mode);
+        let operand = self.bus.read(address);
+        let res: u16 = (operand as u16) << 1;
+        self.set_carry(operand & 0b10000000 != 0);
+        // self.set_zero((res & 0x00ff) == 0x00);
+        // self.set_negative((res & 0x80) > 0);
+        self.write(address, res as u8);
+
+        let result = self.a | res as u8;
+        self.set_zero((result & 0x00ff) == 0x00);
+        self.set_negative((result & 0x80) > 0);
+        self.a = result;
     }
 
     //Helper functions.
