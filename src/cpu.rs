@@ -35,7 +35,8 @@ pub enum Interrupt {
 
 pub struct CPU {
     pub bus: BUS,
-    cycles: usize,
+    cycles: u8,
+    cycle_count: usize,
     pub a: u8,
     pub x: u8,
     pub y: u8,
@@ -45,12 +46,32 @@ pub struct CPU {
     pub pc: u16,
 }
 
-//TODO: Check if flags work correctly. Places of problems: Reset() set_*FLAG*()
+const CYCLES_LIST :[u8; 256] = [
+        7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6, //0x00...0x0F
+        2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, //0x10...0x1F
+        6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6, //0x20...0x2F
+        2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, //0x30...0x3F
+        6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6, //0x40...0x4F
+        2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, //0x50...0x5F
+        6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6, //0x60...0x6F
+        2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, //0x70...0x7F
+        2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, //0x80...0x8F
+        2, 6, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5, //0x90...0x9F
+        2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, //0xA0...0xAF
+        2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4, //0xB0...0xBF
+        2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, //0xC0...0xCF
+        2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, //0xD0...0xDF
+        2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, //0xE0...0xEF
+        2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7  //0xF0...0xFF
+    ];
+
+
 impl CPU {
     pub fn new(bus: BUS) -> Self {
         CPU {
             bus,
             cycles: 0,
+            cycle_count: 7,
             a: 0,
             x: 0,
             y: 0,
@@ -64,22 +85,12 @@ impl CPU {
     pub fn clock(&mut self, debug: bool) {
         if self.cycles == 0 {
             let opcode = self.read(self.pc);
+            self.cycles = CYCLES_LIST[opcode as usize];
             let op_1 = self.read(self.pc+1);
             let op_2 = self.read(self.pc+2);
-            if debug {
-                let mut file = OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .append(true)
-                    .open("log.txt")
-                    .unwrap();
 
-                if let Err(e) = writeln!(file, "{:04X}    {:02X} {:02X} {:02X}         A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:{}, CYC:{}",self.pc, opcode,op_1,op_2,self.a,self.x,self.y,self.p,self.sp,0,self.cycles) {
-                    panic!("Couldn't write to file: {}", e);
-                }
-                //C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD PPU:  0, 21 CYC:7
-                println!("{:04x}    {:02x} {:02x} {:02x}         A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x} PPU:{}, CYC:{}",self.pc, opcode,op_1,op_2,self.a,self.x,self.y,self.p,self.sp,0,self.cycles);
-            }
+            if debug {log_cpu(self.pc, opcode,op_1,op_2,self.a,self.x,self.y,self.p,self.sp,self.cycle_count)};
+
             self.set_unused(); //Always true
             self.pc += 1;
             match opcode {
@@ -308,7 +319,8 @@ impl CPU {
             }
             self.set_unused();
         }
-        // self.cycles -= 1;
+        self.cycle_count += 1;
+        self.cycles -= 1;
     }
 
     //Instructions.
@@ -335,7 +347,7 @@ impl CPU {
 
     fn asl_ret(&mut self, mode: &Mode) -> u8 {
         let address = self.operand_address(mode);
-        let operand = self.bus.read(address);
+        let operand = self.read(address);
         let result: u16 = (operand as u16) << 1;
         self.set_carry(operand & 0b10000000 != 0);
         self.set_zero((result & 0x00ff) == 0x00);
@@ -752,14 +764,14 @@ impl CPU {
     fn sax(&mut self, mode: Mode) {
         let address = self.operand_address(&mode);
         let result = self.a & self.x;
-        self.bus.write(address, result);
+        self.write(address, result);
     }
 
     fn dcp(&mut self, mode: Mode) {
         let address = self.operand_address(&mode);
-        let operand = self.bus.read(address);
+        let operand = self.read(address);
         let result = operand.wrapping_sub(1);
-        self.bus.write(address, result);
+        self.write(address, result);
         let a = self.a;
         self.set_zero((a.wrapping_sub(result) as u8) == 0);
         self.set_negative((a.wrapping_sub(result) & 0b10000000) != 0);
@@ -769,9 +781,9 @@ impl CPU {
     fn isc(&mut self, mode: Mode) {
         //Incrementing
         let address = self.operand_address(&mode);
-        let operand = self.bus.read(address);
+        let operand = self.read(address);
         let result = operand.wrapping_add(1);
-        self.bus.write(address, result);
+        self.write(address, result);
         
         //reasigning operand
         let operand = !result;
@@ -828,7 +840,8 @@ impl CPU {
         let x = Mode::Immediate;
         let offset = self.read_operand(&x) as i8 as u16;
         if condition {
-            self.pc = self.pc.wrapping_add(offset as u16);
+            self.cycles += 1;
+			self.pc = self.pc.wrapping_add(offset as u16);
         }
     }
 
@@ -854,11 +867,19 @@ impl CPU {
             Mode::Absolute => self.next_word(),
             Mode::AbsoluteX => {
                 let base = self.next_word();
-                offset(base, self.x)
+                let res = offset(base, self.x);
+                if (base & 0xFF00) != (res & 0xFF00) {
+                    self.cycles += 1
+                }
+                res
             }
             Mode::AbsoluteY => {
                 let base = self.next_word();
-                offset(base, self.y)
+                let res = offset(base, self.y);
+                if (base & 0xFF00) != (res & 0xFF00) {
+                    self.cycles += 1
+                }
+                res
             }
             Mode::Indirect => {
                 let i = self.next_word();
@@ -877,7 +898,11 @@ impl CPU {
                 let x = self.read(i as u16);
                 let y = self.read(low_byte(i.wrapping_add(1)));
                 let base = ((y as u16) << 8) | (x as u16);
-                offset(base, self.y)
+                let res = offset(base, self.y);
+                if (base & 0xFF00) != (res & 0xFF00) {
+                    self.cycles += 1
+                }
+                res
             }
             _ => panic!("Error: Unknown mode to read from memory"),
         }
@@ -1114,6 +1139,22 @@ impl CPU {
         }
     }
 }
+
+fn log_cpu(pc: u16, op: u8, op1: u8, op2: u8, a: u8, x: u8, y: u8, p: u8, sp: u8, tot_cyc: usize) {
+    let mut file = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .append(true)
+                    .open("log.txt")
+                    .unwrap();
+
+                if let Err(e) = writeln!(file, "{:04X}    {:02X} {:02X} {:02X}         A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:{}, CYC:{}",pc, op, op1, op2, a, x, y, p, sp, 0, tot_cyc) {
+                    panic!("Couldn't write to file: {}", e);
+                }
+                //C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD PPU:  0, 21 CYC:7
+                println!("{:04x}    {:02x} {:02x} {:02x}         A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x} PPU:{}, CYC:{}",pc, op, op1, op2, a, x, y, p, sp, 0, tot_cyc);
+}
+
 fn high_byte(value: u16) -> u16 {
     value & 0xFF00
 }
