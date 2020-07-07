@@ -25,7 +25,7 @@ pub enum Mode {
     IndirectY,
     Implied,
 }
-
+#[allow(dead_code)]
 pub enum Interrupt {
     Reset,
     Irq,
@@ -65,7 +65,7 @@ const CYCLES_LIST :[u8; 256] = [
         2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7  //0xF0...0xFF
     ];
 
-
+    #[allow(dead_code)]
 impl CPU {
     pub fn new(bus: BUS) -> Self {
         CPU {
@@ -325,7 +325,7 @@ impl CPU {
 
     //Instructions.
     fn ora(&mut self, mode: Mode) {
-        let operand: u8 = self.read_operand(&mode);
+        let operand: u8 = self.read_operand(&mode, true);
         let result = self.a | operand;
         self.set_zero(result == 0x00);
         self.set_negative((result & 0x80) > 0);
@@ -346,7 +346,7 @@ impl CPU {
     }
 
     fn asl_ret(&mut self, mode: &Mode) -> u8 {
-        let address = self.operand_address(mode);
+        let address = self.operand_address(mode, false);
         let operand = self.read(address);
         let result: u16 = (operand as u16) << 1;
         self.set_carry(operand & 0b10000000 != 0);
@@ -374,7 +374,7 @@ impl CPU {
 
     fn jsr(&mut self, _ : Mode) {
         let x = Mode::Absolute;
-        let target_address = self.operand_address(&x);
+        let target_address = self.operand_address(&x, false);
         let return_address = self.pc - 1;
         self.push_to_stack((return_address >> 8) as u8);
         self.push_to_stack(return_address as u8);
@@ -382,7 +382,7 @@ impl CPU {
     }
 
     fn and(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, true);
         let result = self.a & operand;
         self.set_zero(result == 0x0);
         self.set_negative((result & 0x80) > 0);
@@ -390,7 +390,7 @@ impl CPU {
     }
 
     fn bit(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, false);
         let result = self.a & operand;
         self.set_zero((result as u8) == 0);
         self.set_overflow(operand & 0b01000000 != 0);
@@ -413,7 +413,7 @@ impl CPU {
     }
 
     fn rol_ret(&mut self, mode: &Mode) -> u8 {
-        let address = self.operand_address(mode);
+        let address = self.operand_address(mode, false);
         let operand = self.read(address);
         let carry: u8;
         if self.get_carry() { carry = 1 } else { carry = 0 };
@@ -446,7 +446,7 @@ impl CPU {
     }
 
     fn eor(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, true);
         let result = self.a ^ operand;
         self.set_zero((result as u8) == 0);
         self.set_negative((result & 0b10000000) != 0);
@@ -467,7 +467,7 @@ impl CPU {
     }
 
     fn lsr_ret(&mut self, mode: &Mode) -> u8 {
-        let address = self.operand_address(mode);
+        let address = self.operand_address(mode, false);
         let operand = self.read(address);
         let result = operand >> 1;
         self.set_carry(operand & 1 != 0);
@@ -482,7 +482,7 @@ impl CPU {
     }
 
     fn jmp(&mut self, mode: Mode) {
-        self.pc = self.operand_address(&mode);
+        self.pc = self.operand_address(&mode, false);
         // self.cycles = 7;
     }
 
@@ -493,7 +493,7 @@ impl CPU {
 
     fn adc(&mut self, mode: Mode) {
         let a = self.a;
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, true);
         let carry: u8;
         if self.get_carry() { carry = 1 } else { carry = 0 };
         let result = a as u16 + operand as u16 + carry as u16;
@@ -530,7 +530,7 @@ impl CPU {
     }
 
     fn ror_ret(&mut self, mode: &Mode) -> u8 {
-        let address = self.operand_address(mode);
+        let address = self.operand_address(mode, false);
         let operand = self.read(address);
         let carry: u8;
         if self.get_carry() { carry = 1 } else { carry = 0 };
@@ -559,19 +559,19 @@ impl CPU {
     }
 
     fn sty(&mut self, mode: Mode) {
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let value = self.y;
         self.write(address, value);
     }
 
     fn sta(&mut self, mode: Mode) {
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let value = self.a;
         self.write(address, value);
     }
 
     fn stx(&mut self, mode: Mode) {
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let value = self.x;
         self.write(address, value);
     }
@@ -613,21 +613,21 @@ impl CPU {
     }
 
     fn ldy(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, true);
         self.set_zero(operand == 0);
         self.set_negative((operand & 0x80) > 0);
         self.y = operand;
     }
 
     fn lda(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, true);
         self.set_zero(operand == 0);
         self.set_negative((operand & 0x80) > 0);
         self.a = operand;
     }
 
     fn ldx(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, true);
         self.set_zero(operand == 0);
         self.set_negative((operand & 0x80) > 0);
         self.x = operand;
@@ -663,7 +663,7 @@ impl CPU {
     }
 
     fn cpy(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, false);
         let y = self.y;
         self.set_zero(y.wrapping_sub(operand) == 0);
         self.set_negative((y.wrapping_sub(operand) & 0x80) > 0);
@@ -671,7 +671,7 @@ impl CPU {
     }
 
     fn cmp(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, true);
         let a = self.a;
         self.set_zero(a.wrapping_sub(operand) == 0);
         self.set_negative((a.wrapping_sub(operand) & 0x80) > 0);
@@ -679,7 +679,7 @@ impl CPU {
     }
 
     fn dec(&mut self, mode: Mode) {
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let operand = self.read(address);
         let result = operand.wrapping_sub(1);
         self.set_zero((result as u8) == 0);
@@ -710,7 +710,7 @@ impl CPU {
     }
 
     fn cpx(&mut self, mode: Mode) {
-        let operand = self.read_operand(&mode);
+        let operand = self.read_operand(&mode, false);
         let x = self.x;
         self.set_zero(x.wrapping_sub(operand) == 0);
         self.set_negative((x.wrapping_sub(operand) & 0x80) > 0);
@@ -719,7 +719,7 @@ impl CPU {
 
     fn sbc(&mut self, mode: Mode) {
         let a = self.a;
-        let operand = !self.read_operand(&mode);
+        let operand = !self.read_operand(&mode, true);
         let carry: u8;
         if self.get_carry() { carry = 1 } else { carry = 0 };
         let result = a as u16 + operand as u16 + carry as u16;
@@ -731,7 +731,7 @@ impl CPU {
     }
 
     fn inc(&mut self, mode: Mode) {
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let operand = self.read(address);
         let result = operand.wrapping_add(1);
         self.set_zero((result as u8) == 0);
@@ -749,7 +749,7 @@ impl CPU {
     fn nop(&mut self, _ : Mode) {}
 
     fn nop_read(&mut self, mode: Mode) {
-        self.read_operand(&mode);
+        self.read_operand(&mode, true);
     }
 
     fn beq(&mut self, _ : Mode) {
@@ -762,13 +762,13 @@ impl CPU {
     }
 
     fn sax(&mut self, mode: Mode) {
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let result = self.a & self.x;
         self.write(address, result);
     }
 
     fn dcp(&mut self, mode: Mode) {
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let operand = self.read(address);
         let result = operand.wrapping_sub(1);
         self.write(address, result);
@@ -780,7 +780,7 @@ impl CPU {
 
     fn isc(&mut self, mode: Mode) {
         //Incrementing
-        let address = self.operand_address(&mode);
+        let address = self.operand_address(&mode, false);
         let operand = self.read(address);
         let result = operand.wrapping_add(1);
         self.write(address, result);
@@ -836,21 +836,22 @@ impl CPU {
     }
 
     fn branch(&mut self, condition: bool) {
-        //TODO: CHECK CYCLES.
         let x = Mode::Immediate;
-        let offset = self.read_operand(&x) as i8 as u16;
+        let offset = self.read_operand(&x, true) as i8 as u16;
         if condition {
             self.cycles += 1;
-			self.pc = self.pc.wrapping_add(offset as u16);
+            let absolute_addr = self.pc.wrapping_add(offset as u16);
+            if (absolute_addr & 0xFF00) != (self.pc & 0xFF00) { self.cycles += 1};
+            self.pc = absolute_addr
         }
     }
 
-    fn read_operand(&mut self, mode: &Mode) -> u8 {
-        let address: u16 = self.operand_address(mode);
+    fn read_operand(&mut self, mode: &Mode, needs_additional_cycle: bool) -> u8 {
+        let address: u16 = self.operand_address(mode, needs_additional_cycle);
         self.read(address)
     }
 
-    fn operand_address(&mut self, mode: &Mode) -> u16 {
+    fn operand_address(&mut self, mode: &Mode, needs_additional_cycle: bool) -> u16 {
         match mode {
             Mode::Immediate => {
                 let original_pc = self.pc;
@@ -868,7 +869,7 @@ impl CPU {
             Mode::AbsoluteX => {
                 let base = self.next_word();
                 let res = offset(base, self.x);
-                if (base & 0xFF00) != (res & 0xFF00) {
+                if ((base & 0xFF00) != (res & 0xFF00)) && needs_additional_cycle {
                     self.cycles += 1
                 }
                 res
@@ -876,7 +877,7 @@ impl CPU {
             Mode::AbsoluteY => {
                 let base = self.next_word();
                 let res = offset(base, self.y);
-                if (base & 0xFF00) != (res & 0xFF00) {
+                if ((base & 0xFF00) != (res & 0xFF00)) && needs_additional_cycle {
                     self.cycles += 1
                 }
                 res
@@ -899,7 +900,7 @@ impl CPU {
                 let y = self.read(low_byte(i.wrapping_add(1)));
                 let base = ((y as u16) << 8) | (x as u16);
                 let res = offset(base, self.y);
-                if (base & 0xFF00) != (res & 0xFF00) {
+                if ((base & 0xFF00) != (res & 0xFF00)) && needs_additional_cycle {
                     self.cycles += 1
                 }
                 res
@@ -955,7 +956,6 @@ impl CPU {
                 self.pc -= 1;
                 self.brk(); //Calling BREAK instruction. BREAK instruction increments pc by 1 where as interrupt does not.
             }
-            _ => panic!("Unimplemented Interrupt called!"),
         }
     }
 
@@ -1141,6 +1141,7 @@ impl CPU {
 }
 
 fn log_cpu(pc: u16, op: u8, op1: u8, op2: u8, a: u8, x: u8, y: u8, p: u8, sp: u8, tot_cyc: usize) {
+    //TODO: Improve logging. 
     let mut file = OpenOptions::new()
                     .write(true)
                     .create(true)
@@ -1151,7 +1152,7 @@ fn log_cpu(pc: u16, op: u8, op1: u8, op2: u8, a: u8, x: u8, y: u8, p: u8, sp: u8
                 if let Err(e) = writeln!(file, "{:04X}    {:02X} {:02X} {:02X}         A:{:02X} X:{:02X} Y:{:02X} P:{:02X} SP:{:02X} PPU:{}, CYC:{}",pc, op, op1, op2, a, x, y, p, sp, 0, tot_cyc) {
                     panic!("Couldn't write to file: {}", e);
                 }
-                //C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD PPU:  0, 21 CYC:7
+                //Example: C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD PPU:  0, 21 CYC:7
                 println!("{:04x}    {:02x} {:02x} {:02x}         A:{:02x} X:{:02x} Y:{:02x} P:{:02x} SP:{:02x} PPU:{}, CYC:{}",pc, op, op1, op2, a, x, y, p, sp, 0, tot_cyc);
 }
 
