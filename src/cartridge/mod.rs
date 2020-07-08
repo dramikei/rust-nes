@@ -22,7 +22,7 @@ impl Cartridge {
         let cart_data = CartridgeData::new(data[header.prg_rom_range()].to_vec(), vec![0u8; header.prg_ram_bytes()] ,data[header.chr_rom_range()].to_vec(), vec![0u8; header.chr_ram_bytes()]);
         
         let mapper: Box<dyn Mapper> = match header.mapper_number {
-            0 => Box::new(Mapper000::new()),
+            0 => Box::new(Mapper000::new(header.prg_rom_pages, header.prg_ram_pages, header.chr_rom_pages)),
             n => panic!("Mapper {} not implemented", n),
         };
         
@@ -38,7 +38,8 @@ impl Cartridge {
     }
 
     pub fn cpu_read(&self, addr: u16) -> u8 {
-        self.mapper.read_prg_mapped(addr)
+        let mapped_addr = self.mapper.read_prg_mapped(addr);
+        self.data.prg_rom[mapped_addr as usize]
     }
 
     pub fn ppu_read(&self, addr: u16) -> u8 {
