@@ -1,5 +1,9 @@
-
-const MEM_SIZE: usize = 0x10000;
+use std::cell::RefCell;
+use std::rc::Rc;
+#[path = "cartridge/mod.rs"]
+mod cartridge;
+use cartridge::Cartridge;
+const MEM_SIZE: usize = 2048;
 
 // Memory
 // ========
@@ -18,21 +22,39 @@ const MEM_SIZE: usize = 0x10000;
 
 pub struct BUS {
     
-    //temp ram
-    pub memory: [u8;MEM_SIZE]
+    pub memory: [u8;MEM_SIZE],
+    pub cartridge: Option<Rc<RefCell<Cartridge>>>,
+    system_clock_count: usize,
 }
 
 impl BUS {
     pub fn new() -> Self {
         BUS {
-            memory: [0;MEM_SIZE]
+            memory: [0;MEM_SIZE],
+            cartridge: None,
+            system_clock_count: 0,
         }
     }
 
     pub fn read(&mut self, addr: u16) -> u8 {
-        //TODO: Change limits when adding new components ot the BUS.
-        if addr >= 0x0000 && addr <= 0xffff {
-            self.memory[addr as usize]
+        let mut cartridge_addr = false;
+        if let Some(ref c) = self.cartridge { cartridge_addr = c.borrow().can_read_addr(addr);}
+        else {
+            panic!("Cannot borrow while checking for cartridge_addr");
+        }
+        if cartridge_addr {
+            // Cartridge Address Range
+            if let Some(ref c) = self.cartridge { 
+                c.borrow().cpu_read(addr)
+            } else {
+                panic!("Cannot borrow while reading from cartridge");
+            }
+        } else if addr >= 0x0000 && addr <= 0x1FFF {
+            // System RAM Address Range, mirrored every 2048
+            self.memory[(addr & 0x07FF) as usize]
+        } else if addr >= 0x2000 && addr <= 0x3FFF {
+            // PPU Address range, mirrored every 8
+            0 //TODO: Return ppu read data
         } else {
             panic!("Reading at wrong address from bus! {:4x}", addr);
         }
@@ -40,9 +62,14 @@ impl BUS {
 
 
     pub fn write(&mut self, addr: u16, data: u8) {
-        //TODO: Change limits when adding new components ot the BUS.
-        if addr >= 0x0000 && addr <= 0xffff {
-            self.memory[addr as usize] = data;
+        if addr >= 0x0000 && addr <= 0x1FFF {
+            // System RAM Address Range, mirrored every 2048
+            self.memory[(addr & 0x07FF) as usize] = data;
+        } else if addr >= 0x2000 && addr <= 0x3FFF {
+            // PPU Address range, mirrored every 8
+            //TODO: Write data to ppu
+        } else {
+            panic!("Reading at wrong address from bus! {:4x}", addr);
         }
     }
 }
