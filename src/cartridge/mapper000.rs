@@ -6,7 +6,7 @@ pub struct Mapper000 {
 impl Mapper000 {
     pub fn new() -> Self {
        Mapper000 {
-           
+
        }
     }
 }
@@ -26,6 +26,9 @@ impl Mapper for Mapper000 {
 
     }
     fn irq_flag(&self) -> bool {
+        false
+    }
+    fn can_read(&self, address: u16) -> bool {
         false
     }
 }

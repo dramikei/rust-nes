@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 #[path = "cartridge/mod.rs"]
 mod cartridge;
 use cartridge::Cartridge;
@@ -23,8 +21,8 @@ const MEM_SIZE: usize = 2048;
 pub struct BUS {
     
     pub memory: [u8;MEM_SIZE],
-    pub cartridge: Option<Rc<RefCell<Cartridge>>>,
-    system_clock_count: usize,
+    pub cartridge: Option<Cartridge>,
+    pub system_clock_count: usize,
 }
 
 impl BUS {
@@ -38,18 +36,14 @@ impl BUS {
 
     pub fn read(&mut self, addr: u16) -> u8 {
         let mut cartridge_addr = false;
-        if let Some(ref c) = self.cartridge { cartridge_addr = c.borrow().can_read_addr(addr);}
-        else {
-            panic!("Cannot borrow while checking for cartridge_addr");
+        // if self.cartridge == Some(c) { cartridge_addr = c.borrow().can_read_addr(addr);}
+        if self.cartridge.is_some() {
+            cartridge_addr = self.cartridge.as_ref().unwrap().can_read_addr(addr);
         }
         if cartridge_addr {
             // Cartridge Address Range
-            if let Some(ref c) = self.cartridge { 
-                c.borrow().cpu_read(addr)
-            } else {
-                panic!("Cannot borrow while reading from cartridge");
-            }
-        } else if addr >= 0x0000 && addr <= 0x1FFF {
+            self.cartridge.as_ref().unwrap().cpu_read(addr)
+        } else if addr <= 0x1FFF {
             // System RAM Address Range, mirrored every 2048
             self.memory[(addr & 0x07FF) as usize]
         } else if addr >= 0x2000 && addr <= 0x3FFF {
@@ -62,7 +56,7 @@ impl BUS {
 
 
     pub fn write(&mut self, addr: u16, data: u8) {
-        if addr >= 0x0000 && addr <= 0x1FFF {
+        if addr <= 0x1FFF {
             // System RAM Address Range, mirrored every 2048
             self.memory[(addr & 0x07FF) as usize] = data;
         } else if addr >= 0x2000 && addr <= 0x3FFF {
@@ -71,5 +65,10 @@ impl BUS {
         } else {
             panic!("Reading at wrong address from bus! {:4x}", addr);
         }
+    }
+
+    pub fn load_cart(&mut self, name: String) {
+        let x = std::include_bytes!("nestest.nes");
+        self.cartridge = Some(Cartridge::new(x));
     }
 }

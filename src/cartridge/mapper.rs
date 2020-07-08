@@ -6,4 +6,6 @@ pub trait Mapper {
     fn irq_flag(&self) -> bool {
         false
     }
+
+    fn can_read(&self, address:u16) -> bool;
 }

@@ -5,13 +5,19 @@ use cpu::CPU;
 
 fn main() {
     println!("NES Started!");
-    let bus = BUS::new();
+    let mut bus = BUS::new();
+    bus.load_cart(String::from("Test"));
     let mut cpu: CPU = CPU::new(bus);
     //////FOR TESTING///////
-    load_test_rom(&mut cpu.bus);
     cpu.pc = 0xc000;
     loop {
-        cpu.clock(true);
+        cpu.bus.system_clock_count += 1;
+
+        //Clock ppu
+
+        if cpu.bus.system_clock_count % 3 == 0 {
+            cpu.clock(true);
+        }
     }
 }
 
