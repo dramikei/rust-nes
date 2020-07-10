@@ -3,7 +3,7 @@ const PRG_ROM_PAGE_SIZE: usize = 0x4000; // 16384 * x Bytes
 const PRG_RAM_PAGE_SIZE: usize = 0x2000;
 const CHR_ROM_PAGE_SIZE: usize = 0x2000; // 8192 * y Bytes
 const CHR_RAM_PAGE_SIZE: usize = 0x2000;
-
+#[derive(Copy, Clone)]
 pub struct CartridgeHeader {
     pub mapper_number: u8,
     // pub mirroring: Mirroring,

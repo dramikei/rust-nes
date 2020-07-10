@@ -8,7 +8,7 @@ use cartridge_header::CartridgeHeader;
 use cartridge_data::CartridgeData;
 
 pub struct Cartridge {
-    header: CartridgeHeader,
+    pub header: CartridgeHeader,
     data: CartridgeData,
     mapper: Box<dyn Mapper>,
 }
@@ -21,8 +21,9 @@ impl Cartridge {
         let header = CartridgeHeader::new(mapper, data[4] as usize, prg_ram_pages, data[5] as usize);
         let cart_data = CartridgeData::new(data[header.prg_rom_range()].to_vec(), vec![0u8; header.prg_ram_bytes()] ,data[header.chr_rom_range()].to_vec(), vec![0u8; header.chr_ram_bytes()]);
         
+        //Check for the type of mapper and copy header in the specific mapper's constructor.
         let mapper: Box<dyn Mapper> = match header.mapper_number {
-            0 => Box::new(Mapper000::new(header.prg_rom_pages, header.prg_ram_pages, header.chr_rom_pages)),
+            0 => Box::new(Mapper000::new(header)),
             n => panic!("Mapper {} not implemented", n),
         };
         

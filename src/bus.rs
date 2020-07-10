@@ -3,7 +3,7 @@ mod cartridge;
 use cartridge::Cartridge;
 const MEM_SIZE: usize = 2048;
 use std::fs;
-use std::path::Path;
+
 // Memory
 // ========
 // 0x100    => Zero Page
@@ -69,8 +69,6 @@ impl BUS {
     }
 
     pub fn load_cart(&mut self, name: String) {
-        println!("ROM: {}",name);
-        let tt = format!("./{}",name);
         let rom = fs::read(name).expect("Error: Cannot read ROM");
         self.cartridge = Some(Cartridge::new(&rom));
     }
