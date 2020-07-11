@@ -1,11 +1,12 @@
 pub trait Mapper {
-    fn read_prg_mapped(&self, address: u16) -> u16;
-    fn write_prg_mapped(&mut self, address: u16, value: u8);
-    fn read_chr_mapped(&self, address: u16) -> u8;
-    fn write_chr_mapped(&mut self, address: u16, value: u8);
+    fn map_prg_read(&self, address: u16) -> u16;
+    fn map_prg_write(&mut self, address: u16) -> u16;
+    fn map_chr_read(&self, address: u16) -> u16;
+    fn map_chr_write(&mut self, address: u16) -> u16;
     fn irq_flag(&self) -> bool {
         false
     }
 
-    fn can_read(&self, address:u16) -> bool;
+    fn can_cpu_read(&self, address:u16) -> bool;
+    fn can_ppu_read(&self, address:u16) -> bool;
 }

@@ -1,21 +1,25 @@
 use std::ops::Range;
+use super::Mirroring;
+
 const PRG_ROM_PAGE_SIZE: usize = 0x4000; // 16384 * x Bytes
 const PRG_RAM_PAGE_SIZE: usize = 0x2000;
 const CHR_ROM_PAGE_SIZE: usize = 0x2000; // 8192 * y Bytes
 const CHR_RAM_PAGE_SIZE: usize = 0x2000;
+
 #[derive(Copy, Clone)]
 pub struct CartridgeHeader {
     pub mapper_number: u8,
-    // pub mirroring: Mirroring,
+    pub mirroring: Mirroring,
     pub prg_rom_pages: usize,
     pub prg_ram_pages: usize,
     pub chr_rom_pages: usize,
 }
 
 impl CartridgeHeader {
-    pub fn new(mapper: u8, prg_rom_pages: usize, prg_ram_pages: usize, chr_rom_pages: usize) -> Self {
+    pub fn new(mapper: u8, mirroring: Mirroring, prg_rom_pages: usize, prg_ram_pages: usize, chr_rom_pages: usize) -> Self {
         CartridgeHeader {
             mapper_number: mapper,
+            mirroring: mirroring,
             prg_rom_pages: prg_rom_pages,
             prg_ram_pages: prg_ram_pages,
             chr_rom_pages: chr_rom_pages,

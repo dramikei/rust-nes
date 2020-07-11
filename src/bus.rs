@@ -36,12 +36,7 @@ impl BUS {
     }
 
     pub fn read(&mut self, addr: u16) -> u8 {
-        let mut cartridge_addr = false;
-        // if self.cartridge == Some(c) { cartridge_addr = c.borrow().can_read_addr(addr);}
-        if self.cartridge.is_some() {
-            cartridge_addr = self.cartridge.as_ref().unwrap().can_read_addr(addr);
-        }
-        if cartridge_addr {
+        if self.cartridge.is_some() && self.cartridge.as_ref().unwrap().can_cpu_read(addr) {
             // Cartridge Address Range
             self.cartridge.as_ref().unwrap().cpu_read(addr)
         } else if addr <= 0x1FFF {
